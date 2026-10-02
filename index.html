@@ -202,8 +202,9 @@
   <!-- REGISTRAR -->
   <section class="vista activa" id="v-registrar">
     <div class="aviso" id="avisoConfig" hidden>
-      Aún no conectaste tu Hoja de Google. Puedes registrar igual: todo queda guardado en el celular y se envía cuando la conectes.
-      <div><button class="btn sec peq" data-ir="ajustes">Conectar ahora</button></div>
+      <b>Bienvenido a Mis Gastos.</b> Tus gastos se guardan en una Hoja de Google tuya, que solo tú ves. Prepararla toma unos 10 minutos.
+      <div class="fila" style="margin:8px 0 0"><a class="btn sec peq" href="guia.html" style="text-align:center;text-decoration:none">Ver la guía</a><button class="btn sec peq" data-ir="ajustes">Ya la tengo</button></div>
+      <div class="pista" style="margin:8px 0 0">Mientras tanto puedes anotar igual: todo queda en tu celular y se envía cuando la conectes.</div>
     </div>
     <div class="resumen"><div><small>Libre de verdad esta quincena</small><b id="rLibre">$0.00</b></div><button data-ir="quincena">Ver detalle ›</button></div>
     <div class="card">
@@ -214,7 +215,7 @@
       <div class="paso"><i>1</i>¿Cuánto?</div>
       <div class="monto-wrap"><span>$</span><input id="monto" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
       <div class="paso"><i>2</i><span id="pasoCat">¿En qué?</span></div>
-      <div class="pista" id="pistaIngreso" hidden>Tu sueldo de Lamatepec, Citalá y la tutoría se marcan en <b>Fijos</b>. Aquí anota solo ingresos extra.</div>
+      <div class="pista" id="pistaIngreso" hidden>Tus ingresos de cada quincena (sueldo, etc.) se marcan en <b>Fijos</b>. Aquí anota solo ingresos extra.</div>
       <div class="chips" id="chips"></div>
       <div id="catsReg"></div>
       <div class="paso"><i>3</i><span id="pasoDet">¿Qué fue exactamente?</span></div>
@@ -352,10 +353,15 @@ const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
   ['Pagos fijos', '📌'], ['Lamatepec', '🏫'], ['Citalá', '🏫'], ['Tutoría', '📚'], ['Universidad', '🎓'], ['Suscripciones', '📱']].map(c => [c[0], c[1]]));
 // Nombres viejos que ya están en la Hoja.
 // Categorías de gasto (editables): { n: nombre, ico: emoji, base: nombre original o null si la creaste tú }.
+// Quien abre la app por primera vez arranca en blanco; el celular de Eduardo conserva sus listas.
+let perfil = leer('mg_perfil', null);
+if (!perfil) { perfil = { tipo: leer('mg_cfg', null) ? 'eduardo' : 'nuevo' }; escribir('mg_perfil', perfil); }
+const NUEVO = perfil.tipo === 'nuevo';
 let catList = leer('mg_catlist', null);
 if (!catList) {
   const extra = leer('mg_cats', []);
-  catList = [...CATS_BASE.filter(c => c[0] !== 'Otros').map(c => ({ n: c[0], ico: c[1], base: c[0] })),
+  const nombre = c => (NUEVO && c[0] === 'Novia y salidas' ? 'Salidas' : c[0]);
+  catList = [...CATS_BASE.filter(c => c[0] !== 'Otros').map(c => ({ n: nombre(c), ico: c[1], base: c[0] })),
     ...extra.map(c => ({ n: c[0], ico: c[1], base: null })),
     ...CATS_BASE.filter(c => c[0] === 'Otros').map(c => ({ n: c[0], ico: c[1], base: c[0] }))];
 }
@@ -408,9 +414,9 @@ function leer(k, def) { try { const v = localStorage.getItem(k); return v ? JSON
 function escribir(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
 let cfg = leer('mg_cfg', { url: '', pin: '' });
-let pres = leer('mg_pres', PRES_INICIAL);
+let pres = leer('mg_pres', NUEVO ? {} : PRES_INICIAL);
 if (pres['Gasolina'] === 60) { pres['Gasolina'] = 105; escribir('mg_pres', pres); }  // tope real que usa Eduardo
-let fijos = leer('mg_fijos', FIJOS_INICIAL);
+let fijos = leer('mg_fijos', NUEVO ? [] : FIJOS_INICIAL);
 // Antes la universidad y la casa iban por mitades en cada quincena; ahora van completas el 30.
 if (fijos.some(f => /\(mitad\)/.test(f.n))) {
   fijos = fijos.filter(f => !(/\(mitad\)/.test(f.n) && f.q === '15')).map(f =>
@@ -418,7 +424,9 @@ if (fijos.some(f => /\(mitad\)/.test(f.n))) {
     f.n === 'Servicios casa (mitad)' ? { n: 'Servicios casa', m: 72.77, q: f.q } : f);
   escribir('mg_fijos', fijos);
 }
-let ingresos = leer('mg_ingresos', INGRESOS_INICIAL);
+let ingresos = leer('mg_ingresos', NUEVO ? [] : INGRESOS_INICIAL);
+// Las listas quedan guardadas en el celular para que no dependan de lo que venga en el código.
+[['mg_pres', pres], ['mg_fijos', fijos], ['mg_ingresos', ingresos], ['mg_catlist', catList]].forEach(([k, v]) => { if (leer(k, null) === null) escribir(k, v); });
 let omitidos = leer('mg_omitidos', {}); // lo que no toca en una quincena: { clave: ['Gasto:Luz', ...] }
 for (const k in omitidos) omitidos[k] = omitidos[k].map(n => n.includes(':') ? n : 'Gasto:' + n);
 let cola = leer('mg_cola', []).map(normalizar); // registros que aún no llegan a la Hoja

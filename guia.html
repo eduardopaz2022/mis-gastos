@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#004d98">
+<title>Guía · Mis Gastos</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; --primary: #004d98; --primary-soft: #e6eef8; --grana: #a50044; --oro: #edbb00;
+    --bg: #f5f6fa; --card: #fff; --text: #13213a; --muted: #66708a; --line: #e2e6ef; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { font: 400 1rem/1.5 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--card); border-bottom: 4px solid; border-image: repeating-linear-gradient(90deg, var(--primary) 0 28px, var(--grana) 28px 56px) 4;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 14px; }
+  h1 { font: 700 1.2rem 'Poppins', sans-serif; } h1 span { color: var(--grana); }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  h2 { font: 700 1rem 'Poppins', sans-serif; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  h2 i { font-style: normal; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--grana); color: #fff; font-size: .8rem; flex: none; }
+  ol { padding-left: 20px; } li { margin-bottom: 6px; }
+  p { margin-bottom: 8px; } .muted { color: var(--muted); font-size: .9rem; }
+  code { background: var(--primary-soft); color: var(--primary); padding: 1px 6px; border-radius: 6px; font-size: .9em; }
+  .btn { display: block; text-align: center; text-decoration: none; border-radius: 12px; padding: 13px; font-weight: 700; background: var(--primary); color: #fff; margin: 10px 0 4px; }
+  .btn.sec { background: var(--card); color: var(--primary); border: 1px solid var(--primary); }
+  .nota { background: var(--primary-soft); border-left: 4px solid var(--oro); border-radius: 10px; padding: 10px 12px; font-size: .9rem; }
+</style>
+</head>
+<body>
+<header><h1>Mis <span>Gastos</span> · Guía</h1></header>
+<main>
+  <div class="card">
+    <p>Mis Gastos guarda todo en <b>una Hoja de Google tuya</b>. Nadie más la ve, ni quien te compartió la app. Hazlo desde una computadora; toma unos 10 minutos y solo se hace una vez.</p>
+  </div>
+
+  <div class="card">
+    <h2><i>1</i>Copia la Hoja plantilla</h2>
+    <p id="conPlantilla" hidden>Toca el botón, entra con tu cuenta de Google y dale <b>Hacer una copia</b>.</p>
+    <a class="btn" id="btnPlantilla" href="#" hidden>Copiar la plantilla</a>
+    <p id="sinPlantilla" class="muted">Pídele el enlace de la plantilla a quien te compartió la app.</p>
+  </div>
+
+  <div class="card">
+    <h2><i>2</i>Pon tu PIN</h2>
+    <ol>
+      <li>En tu copia ve a <b>Extensiones &gt; Apps Script</b>.</li>
+      <li>En la línea <code>const PIN = '1234';</code> cambia 1234 por un PIN tuyo de 6 a 8 números.</li>
+      <li>Dale guardar (el ícono del disquete).</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2><i>3</i>Actívala</h2>
+    <ol>
+      <li>Arriba a la derecha: <b>Implementar &gt; Nueva implementación</b>. En el engranaje elige <b>Aplicación web</b>.</li>
+      <li>Ejecutar como: <b>Yo</b>. Quién tiene acceso: <b>Cualquier persona</b>.</li>
+      <li>Dale <b>Implementar</b> y <b>Autorizar acceso</b>. Si sale "Google no ha verificado esta app", es normal porque el código está en tu propia Hoja: <b>Configuración avanzada &gt; Ir a … (no seguro) &gt; Permitir</b>.</li>
+      <li>Copia la <b>URL de la aplicación web</b> (termina en <code>/exec</code>) y mándatela al celular.</li>
+    </ol>
+    <p class="nota">"Cualquier persona" solo significa que la app puede hablar con tu Hoja. Sin tu PIN nadie puede leer ni anotar nada.</p>
+  </div>
+
+  <div class="card">
+    <h2><i>4</i>Conéctala en el celular</h2>
+    <ol>
+      <li>Abre la app, ve a <b>Ajustes</b>, pega la URL y tu PIN y toca <b>Guardar y probar conexión</b>.</li>
+      <li>En Ajustes agrega tus <b>ingresos fijos</b> (tu sueldo y en qué quincena cae), tus <b>pagos fijos</b> y los <b>topes</b> de lo que quieras controlar.</li>
+      <li>Para tenerla como app: en Safari, Compartir &gt; <b>Agregar a pantalla de inicio</b>. En Chrome, menú ⋮ &gt; <b>Agregar a pantalla principal</b>.</li>
+    </ol>
+    <a class="btn sec" href="./">Volver a la app</a>
+  </div>
+</main>
+<script>
+  // Enlace de "Hacer una copia" de la Hoja plantilla (termina en /copy).
+  const PLANTILLA = '';
+  if (PLANTILLA) {
+    document.getElementById('btnPlantilla').href = PLANTILLA;
+    ['btnPlantilla', 'conPlantilla'].forEach(id => document.getElementById(id).hidden = false);
+    document.getElementById('sinPlantilla').hidden = true;
+  }
+</script>
+</body>
+</html>
