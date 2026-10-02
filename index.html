@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="google" content="notranslate">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#004d98">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mis Gastos">
 <link rel="manifest" href="manifest.json">
@@ -17,18 +17,21 @@
 <style>
   :root {
     color-scheme: light;
-    --primary: #0f7f6c;
-    --primary-soft: #e2f3ef;
-    --bg: #f4f7f6;
+    --primary: #004d98;     /* azul */
+    --primary-soft: #e6eef8;
+    --grana: #a50044;       /* grana */
+    --grana-soft: #f8e6ee;
+    --oro: #edbb00;
+    --bg: #f5f6fa;
     --card: #ffffff;
-    --text: #1d2b29;
-    --muted: #6b7c78;
-    --line: #e1e8e6;
-    --ok: #0f7f6c;
-    --ok-soft: #e2f3ef;
-    --warn: #d98a00;
-    --bad: #d64545;
-    --bad-soft: #fbe9e9;
+    --text: #13213a;
+    --muted: #66708a;
+    --line: #e2e6ef;
+    --ok: #004d98;
+    --ok-soft: #e6eef8;
+    --warn: #c99a00;
+    --bad: #a50044;
+    --bad-soft: #f8e6ee;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -46,15 +49,19 @@
     display: flex; align-items: center; justify-content: space-between;
   }
   header h1 { font-size: 1.2rem; }
-  header h1 span { color: var(--primary); }
+  header h1 span { color: var(--grana); }
+  header::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 4px;
+    background: repeating-linear-gradient(90deg, var(--primary) 0 28px, var(--grana) 28px 56px); }
+  .resumen b { color: var(--primary); }
+  .verde { color: var(--primary) !important; }
   header .periodo { font-size: .8rem; color: var(--muted); }
   .sync { font-size: .75rem; background: var(--primary-soft); color: var(--primary); font-weight: 600; padding: 4px 10px; border-radius: 99px; }
-  .resumen { display: flex; align-items: center; justify-content: space-between; background: var(--primary-soft); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+  .resumen { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--primary-soft), var(--grana-soft)); border-left: 4px solid var(--oro); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
   .resumen small { display: block; color: var(--muted); font-size: .78rem; }
   .resumen b { font: 700 1.35rem 'Poppins', sans-serif; }
   .resumen button { border: 0; background: transparent; color: var(--primary); font: 600 .82rem 'Inter', sans-serif; }
   .paso { font-size: .82rem; font-weight: 700; color: var(--text); margin: 4px 0 8px; }
-  .paso i { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .72rem; margin-right: 6px; }
+  .paso i { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--grana); color: #fff; font-size: .72rem; margin-right: 6px; }
   .pista { font-size: .8rem; color: var(--muted); margin: -4px 0 12px; }
   main { max-width: 560px; margin: 0 auto; padding: 16px; }
   .vista { display: none; }
@@ -109,7 +116,15 @@
   .cat-top small { color: var(--muted); font-size: .75rem; margin-left: 4px; }
   .subs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .sub { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 7px 12px; font: 500 .85rem 'Inter', sans-serif; }
-  .sub.on { border-color: var(--primary); background: var(--primary); color: #fff; }
+  .sub.on { border-color: var(--grana); background: var(--grana); color: #fff; }
+  .mov .info { cursor: pointer; }
+  .hoja-fondo { position: fixed; inset: 0; background: rgba(19,33,58,.45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+  .hoja { background: var(--card); width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 88vh; overflow: auto; }
+  .hoja h3 { font: 700 1.05rem 'Poppins', sans-serif; margin-bottom: 12px; }
+  .hoja label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin: 0 0 4px; }
+  .nueva-cat { display: grid; grid-template-columns: 52px 1fr 76px; gap: 6px; margin-top: 10px; }
+  .nueva-cat input { padding: 8px; font-size: .9rem; }
+  .pres-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; margin-left: 6px; }
   .cat-top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: 4px; }
   .barra { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
   .barra i { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
@@ -207,7 +222,7 @@
       <button class="btn" id="guardar">Guardar</button>
     </div>
     <div class="card">
-      <div class="etiqueta">Lo último que anotaste</div>
+      <div class="etiqueta">Lo último que anotaste · toca uno para cambiarlo</div>
       <div id="ultimos"></div>
     </div>
   </section>
@@ -232,7 +247,7 @@
       <div id="cats"></div>
     </div>
     <div class="card">
-      <div class="etiqueta">Movimientos</div>
+      <div class="etiqueta">Movimientos · toca uno para cambiarlo</div>
       <div id="movs"></div>
     </div>
   </section>
@@ -266,6 +281,13 @@
       <p class="ayuda">Lo máximo que te permites gastar por quincena en lo que cambia cada vez. Los pagos fijos no van aquí: tienen su lista abajo.</p>
       <div id="presEditor"></div>
       <button class="btn sec" id="guardarPres" style="margin-top:8px">Guardar topes</button>
+      <div class="etiqueta" style="margin-top:16px">Nueva categoría</div>
+      <div class="nueva-cat">
+        <input id="ncIco" placeholder="🏷️" maxlength="4" aria-label="Emoji">
+        <input id="ncNom" placeholder="Nombre. Ej.: Gimnasio" maxlength="24">
+        <input id="ncTope" placeholder="Tope" inputmode="decimal">
+      </div>
+      <button class="btn sec" id="agregarCat" style="margin-top:8px">+ Agregar categoría</button>
     </div>
     <div class="card">
       <div class="etiqueta">Ingresos fijos</div>
@@ -298,7 +320,7 @@
 
 <script>
 // ---------- Datos base ----------
-const CATS_GASTO = [
+const CATS_BASE = [
   ['Gasolina', '⛽'], ['Comida fuera', '🍔'], ['Súper', '🛒'], ['Casa', '🏠'],
   ['Novia y salidas', '❤️'], ['Carro', '🚗'], ['Personal', '👤'], ['Familia', '👪'],
   ['Deudas', '💳'], ['Ahorro', '💰'], ['Otros', '❓'],
@@ -321,9 +343,13 @@ const SUBTIPOS = {
   'Otros': ['Gasto hormiga', 'Imprevisto'],
   'Bono': [], 'Clases extra': [], 'Venta': [], 'Otros ingresos': [],
 };
-const ICONOS = Object.fromEntries([...CATS_GASTO, ...CATS_INGRESO,
+const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
   ['Pagos fijos', '📌'], ['Lamatepec', '🏫'], ['Citalá', '🏫'], ['Tutoría', '📚'], ['Universidad', '🎓'], ['Suscripciones', '📱']].map(c => [c[0], c[1]]));
 // Nombres viejos que ya están en la Hoja.
+let catsExtra = leer('mg_cats', []); // categorías que agregaste: [[nombre, emoji], ...]
+// Las tuyas van antes de "Otros".
+const catsGasto = () => [...CATS_BASE.filter(c => c[0] !== 'Otros'), ...catsExtra, ...CATS_BASE.filter(c => c[0] === 'Otros')];
+const icono = n => ICONOS[n] || (catsExtra.find(c => c[0] === n) || [])[1] || '•';
 const ALIAS = { 'Colegio mañana': 'Lamatepec' };
 const normalizar = it => (ALIAS[it.categoria] ? { ...it, categoria: ALIAS[it.categoria] } : it);
 const METODOS = ['Débito Cuscatlán', 'Efectivo', 'Promerica', 'Multimoney', 'Otro'];
@@ -534,7 +560,7 @@ function gastadoPorCat(p) {
 function filaCategoria(n, g, tope, cuantos) {
   const d = document.createElement('button'); d.className = 'cat toca';
   const top = document.createElement('div'); top.className = 'cat-top';
-  const a = document.createElement('span'); a.textContent = (ICONOS[n] || '•') + ' ' + n;
+  const a = document.createElement('span'); a.textContent = (icono(n)) + ' ' + n;
   if (cuantos) { const c = document.createElement('small'); c.textContent = '(' + cuantos + ')'; a.appendChild(c); }
   const b = document.createElement('span'); b.textContent = dinero(g) + (tope ? ' / ' + dinero(tope) : '');
   if (tope && g > tope) b.className = 'rojo';
@@ -555,7 +581,7 @@ function pintarCatsReg() {
   const c = $('catsReg'); c.innerHTML = '';
   if (tipo !== 'Gasto') return;
   const porCat = gastadoPorCat(periodoActual());
-  CATS_GASTO.forEach(([n]) => {
+  catsGasto().forEach(([n]) => {
     const f = filaCategoria(n, porCat[n] || 0, SIN_TOPE.includes(n) ? 0 : (pres[n] || 0));
     if (categoria === n) f.classList.add('on');
     f.onclick = () => { if (categoria !== n) subtipo = null; categoria = n; pintarCatsReg(); pintarSubs(); };
@@ -618,7 +644,7 @@ async function guardar() {
 
 function filaMov(it) {
   const div = document.createElement('div'); div.className = 'mov';
-  const ico = document.createElement('div'); ico.className = 'ico'; ico.textContent = ICONOS[it.categoria] || '•';
+  const ico = document.createElement('div'); ico.className = 'ico'; ico.textContent = icono(it.categoria);
   const info = document.createElement('div'); info.className = 'info';
   const t = document.createElement('div'); t.textContent = it.nota || it.categoria;
   const s = document.createElement('small'); s.textContent = corta(desdeIso(it.fecha)) + ' · ' + it.categoria + (it.metodo ? ' · ' + it.metodo : '');
@@ -632,8 +658,51 @@ function filaMov(it) {
     x.dataset.armado = '1'; x.textContent = '¿Borrar?'; x.classList.add('armado');
     setTimeout(() => { delete x.dataset.armado; x.textContent = '✕'; x.classList.remove('armado'); }, 3000);
   };
+  info.onclick = () => editar(it);
   div.append(ico, info, m, x);
   return div;
+}
+
+// Cambiar un movimiento: se guarda el nuevo y se borra el viejo (la Hoja no tiene "editar").
+function editar(it) {
+  const fondo = document.createElement('div'); fondo.className = 'hoja-fondo';
+  const h = document.createElement('div'); h.className = 'hoja';
+  const campo = (lbl, el) => { const w = document.createElement('div'); w.className = 'campo'; const l = document.createElement('label'); l.textContent = lbl; w.append(l, el); h.appendChild(w); return el; };
+  const t = document.createElement('h3'); t.textContent = 'Cambiar ' + (it.tipo === 'Ingreso' ? 'ingreso' : 'gasto'); h.appendChild(t);
+  const monto = campo('Monto', Object.assign(document.createElement('input'), { value: it.monto.toFixed(2), inputMode: 'decimal' }));
+  const cat = campo('Categoría', document.createElement('select'));
+  const opciones = it.tipo === 'Ingreso' ? [...CATS_INGRESO.map(c => c[0]), ...ingresos.map(f => f.n)] : [...catsGasto().map(c => c[0]), 'Pagos fijos'];
+  [...new Set([it.categoria, ...opciones])].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = icono(n) + ' ' + n; if (n === it.categoria) o.selected = true; cat.appendChild(o); });
+  const nota = campo('¿Qué fue?', Object.assign(document.createElement('input'), { value: it.nota || '', maxLength: 80 }));
+  const fecha = campo('Fecha', Object.assign(document.createElement('input'), { type: 'date', value: it.fecha }));
+  const fila = document.createElement('div'); fila.className = 'fila';
+  const cancelar = Object.assign(document.createElement('button'), { className: 'btn sec', textContent: 'Cancelar' });
+  const ok = Object.assign(document.createElement('button'), { className: 'btn', textContent: 'Guardar cambios' });
+  fila.append(cancelar, ok); h.appendChild(fila);
+  fondo.appendChild(h); document.body.appendChild(fondo);
+  const cerrar = () => fondo.remove();
+  cancelar.onclick = cerrar;
+  fondo.onclick = e => { if (e.target === fondo) cerrar(); };
+  ok.onclick = async () => {
+    const v = parseFloat(String(monto.value).replace(',', '.'));
+    if (!(v > 0)) { toast('Escribe el monto'); return; }
+    const nuevo = { id: nuevoId(), fecha: fecha.value || it.fecha, tipo: it.tipo, categoria: cat.value,
+      monto: Math.round(v * 100) / 100, nota: nota.value.trim(), metodo: it.metodo || '', fijo: it.fijo || '' };
+    ok.disabled = true;
+    if (it.pendiente) {
+      cola = cola.map(i => String(i.id) === String(it.id) ? { ...nuevo, id: it.id } : i);
+      escribir('mg_cola', cola); cerrar(); pintar(); toast('Cambiado ✓'); return;
+    }
+    try {
+      await api('POST', { action: 'delete', id: it.id });
+    } catch (e) { ok.disabled = false; toast('Necesitas internet para cambiarlo'); return; }
+    for (const k in cache) cache[k] = cache[k].filter(i => String(i.id) !== String(it.id));
+    enviados = enviados.filter(i => String(i.id) !== String(it.id));
+    escribir('mg_cache', cache); escribir('mg_enviados', enviados);
+    cerrar();
+    await agregar(nuevo);
+    toast('Cambiado ✓');
+  };
 }
 
 function pintarUltimos() {
@@ -666,7 +735,7 @@ function pintarQuincena() {
   linea('Libre de verdad: ', libre);
 
   const porCat = gastadoPorCat(p);
-  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !SIN_TOPE.includes(k) && CATS_GASTO.some(c => c[0] === k)), ...Object.keys(porCat)])]
+  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !SIN_TOPE.includes(k) && catsGasto().some(c => c[0] === k)), ...Object.keys(porCat)])]
     .sort((a, b) => (porCat[b] || 0) - (porCat[a] || 0));
   const c = $('cats'); c.innerHTML = '';
   if (!nombres.length) c.innerHTML = '<div class="vacio">Sin gastos todavía.</div>';
@@ -781,9 +850,14 @@ function pintarLista(c, lista, p) {
 function pintarAjustes() {
   $('cfgUrl').value = cfg.url; $('cfgPin').value = cfg.pin;
   const pe = $('presEditor'); pe.innerHTML = '';
-  CATS_GASTO.filter(([n]) => !SIN_TOPE.includes(n)).forEach(([n, ico]) => {
+  catsGasto().filter(([n]) => !SIN_TOPE.includes(n)).forEach(([n, ico]) => {
     const f = document.createElement('div'); f.className = 'pres-fila';
     const l = document.createElement('span'); l.textContent = ico + ' ' + n;
+    if (catsExtra.some(c => c[0] === n)) {
+      const q = document.createElement('button'); q.className = 'quitar'; q.textContent = '✕'; q.setAttribute('aria-label', 'Quitar ' + n);
+      q.onclick = () => { catsExtra = catsExtra.filter(c => c[0] !== n); escribir('mg_cats', catsExtra); delete pres[n]; escribir('mg_pres', pres); pintarAjustes(); pintar(); toast(n + ' quitada'); };
+      l.appendChild(q);
+    }
     const i = document.createElement('input'); i.inputMode = 'decimal'; i.dataset.cat = n; i.value = pres[n] || ''; i.placeholder = '0';
     f.append(l, i); pe.appendChild(f);
   });
@@ -856,6 +930,16 @@ $('revisar').onclick = async () => {
   } catch (e) { out.push('Leer quincena: ' + e.message); }
   out.push('Por enviar: ' + cola.length + ' · Enviados sin confirmar: ' + enviados.length);
   d.textContent = out.join('\n');
+};
+$('agregarCat').onclick = () => {
+  const n = $('ncNom').value.trim();
+  if (!n) { toast('Escribe el nombre'); $('ncNom').focus(); return; }
+  if (catsGasto().some(c => c[0].toLowerCase() === n.toLowerCase())) { toast('Esa categoría ya existe'); return; }
+  catsExtra = [...catsExtra, [n, $('ncIco').value.trim() || '🏷️']]; escribir('mg_cats', catsExtra);
+  const t = parseFloat(String($('ncTope').value).replace(',', '.'));
+  if (t > 0) { pres[n] = t; escribir('mg_pres', pres); }
+  $('ncNom').value = ''; $('ncIco').value = ''; $('ncTope').value = '';
+  pintarAjustes(); pintar(); toast(n + ' agregada');
 };
 $('guardarPres').onclick = () => {
   const nuevo = {};
