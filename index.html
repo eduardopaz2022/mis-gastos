@@ -134,6 +134,7 @@
   .enlace { border: 0; background: transparent; color: var(--muted); font: 500 .78rem 'Inter', sans-serif; text-decoration: underline; padding: 0; }
   .ok-tag { background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 99px; }
 
+  .diag { margin-top: 10px; background: var(--bg); border-radius: 10px; padding: 10px; font: 12px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
   .ayuda { font-size: .82rem; color: var(--muted); margin: -2px 0 12px; line-height: 1.4; }
   .editor-fila { display: grid; grid-template-columns: 1fr 78px 74px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
   .editor-fila input, .editor-fila select { padding: 8px; font-size: .85rem; }
@@ -246,6 +247,8 @@
       <div class="campo"><input id="cfgUrl" placeholder="URL de la aplicación web (termina en /exec)" autocomplete="off"></div>
       <div class="campo"><input id="cfgPin" placeholder="PIN" inputmode="numeric" autocomplete="off"></div>
       <button class="btn sec" id="probar">Guardar y probar conexión</button>
+      <button class="btn sec" id="revisar" style="margin-top:8px">Revisar mi Hoja</button>
+      <pre id="diag" class="diag" hidden></pre>
     </div>
     <div class="card">
       <div class="etiqueta">Topes para gastos variables</div>
@@ -349,6 +352,8 @@ let ingresos = leer('mg_ingresos', INGRESOS_INICIAL);
 let omitidos = leer('mg_omitidos', {}); // lo que no toca en una quincena: { clave: ['Gasto:Luz', ...] }
 for (const k in omitidos) omitidos[k] = omitidos[k].map(n => n.includes(':') ? n : 'Gasto:' + n);
 let cola = leer('mg_cola', []).map(normalizar); // registros que aún no llegan a la Hoja
+let enviados = leer('mg_enviados', []); // ya enviados a la Hoja, hasta que la Hoja los devuelva al leer
+let ultimoError = '';
 let cache = leer('mg_cache', {});        // registros ya guardados, por quincena
 
 // ---------- Utilidades ----------
@@ -395,7 +400,9 @@ async function api(metodo, datos) {
     // Sin Content-Type para que el navegador no haga preflight (Apps Script no lo soporta).
     r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify({ ...datos, pin: cfg.pin }) });
   }
-  const j = await r.json();
+  const txt = await r.text();
+  let j;
+  try { j = JSON.parse(txt); } catch (e) { throw new Error('respuesta rara de Google: ' + txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140)); }
   if (!j.ok) throw new Error(j.error || 'error');
   return j;
 }
@@ -409,17 +416,20 @@ async function sincronizar() {
   estadoSync('Enviando…');
   try {
     if (cola.length) {
-      const enviados = cola.slice();
-      const r = await api('POST', { action: 'add', items: enviados });
+      const lote = cola.slice();
+      const r = await api('POST', { action: 'add', items: lote });
       const ok = new Set(r.ids.map(String));
+      enviados = [...enviados, ...cola.filter(it => ok.has(String(it.id)))];
       cola = cola.filter(it => !ok.has(String(it.id)));
-      escribir('mg_cola', cola);
+      escribir('mg_cola', cola); escribir('mg_enviados', enviados);
     }
     await cargarPeriodo(periodoVista);
     if (periodoVista.clave !== periodoActual().clave) await cargarPeriodo(periodoActual());
+    ultimoError = '';
   } catch (e) {
     fallo = true;
-    if (e.message === 'pin') toast('El PIN no coincide con el de tu Hoja');
+    ultimoError = e.message === 'pin' ? 'El PIN no coincide con el de tu Hoja' : 'No se pudo leer tu Hoja (' + e.message + ')';
+    toast(ultimoError);
   } finally {
     sincronizando = false;
     estadoSync();
@@ -433,6 +443,10 @@ async function cargarPeriodo(p) {
   const r = await api('GET', { action: 'list', desde: p.desde, hasta: p.hasta });
   cache[p.clave] = r.items.map(normalizar);
   escribir('mg_cache', cache);
+  // Lo que la Hoja ya devuelve deja de guardarse aparte.
+  const enHoja = new Set(r.items.map(i => String(i.id)));
+  enviados = enviados.filter(i => !(i.fecha >= p.desde && i.fecha <= p.hasta && enHoja.has(String(i.id))));
+  escribir('mg_enviados', enviados);
 }
 
 function estadoSync(texto) {
@@ -440,14 +454,16 @@ function estadoSync(texto) {
   if (texto) { s.textContent = texto; return; }
   if (!cfg.url) s.textContent = 'Solo en el celular';
   else if (cola.length) s.textContent = cola.length + ' por enviar';
+  else if (ultimoError) s.textContent = 'Revisar ⚠';
   else s.textContent = navigator.onLine ? 'Al día ✓' : 'Sin conexión';
   $('avisoConfig').hidden = !!cfg.url;
 }
 
 // ---------- Movimientos de una quincena ----------
 function movimientos(p) {
-  const guardados = cache[p.clave] || [];
+  const guardados = [...(cache[p.clave] || [])];
   const ids = new Set(guardados.map(i => String(i.id)));
+  enviados.forEach(i => { if (i.fecha >= p.desde && i.fecha <= p.hasta && !ids.has(String(i.id))) { guardados.push(i); ids.add(String(i.id)); } });
   const pendientes = cola.filter(i => i.fecha >= p.desde && i.fecha <= p.hasta && !ids.has(String(i.id)))
     .map(i => ({ ...i, pendiente: true }));
   return [...guardados, ...pendientes].sort((a, b) => (b.fecha + b.id).localeCompare(a.fecha + a.id));
@@ -470,7 +486,8 @@ async function borrar(item) {
   try {
     await api('POST', { action: 'delete', id: item.id });
     for (const k in cache) cache[k] = cache[k].filter(i => String(i.id) !== String(item.id));
-    escribir('mg_cache', cache);
+    enviados = enviados.filter(i => String(i.id) !== String(item.id));
+    escribir('mg_cache', cache); escribir('mg_enviados', enviados);
     pintar();
     toast('Borrado');
   } catch (e) {
@@ -751,6 +768,21 @@ $('probar').onclick = async () => {
   catch (e) { toast(e.message === 'pin' ? 'El PIN no coincide' : 'No se pudo conectar. Revisa la URL.'); }
   estadoSync();
 };
+$('revisar').onclick = async () => {
+  const d = $('diag'); d.hidden = false; d.textContent = 'Revisando…';
+  const p = periodoActual(), out = [];
+  try {
+    const r = await api('GET', { action: 'diag' });
+    out.push('Script: versión ' + (r.version || '1'), 'Filas en Registro: ' + r.filas, 'Zona horaria: ' + r.zona);
+    (r.muestra || []).forEach((m, i) => out.push('Fila ' + (i + 2) + ': ' + JSON.stringify(m)));
+  } catch (e) { out.push('Diagnóstico: ' + e.message + (e.message === 'accion' ? ' (tu Code.gs es la versión vieja)' : '')); }
+  try {
+    const r = await api('GET', { action: 'list', desde: p.desde, hasta: p.hasta });
+    out.push('Movimientos del ' + p.desde + ' al ' + p.hasta + ': ' + r.items.length);
+  } catch (e) { out.push('Leer quincena: ' + e.message); }
+  out.push('Por enviar: ' + cola.length + ' · Enviados sin confirmar: ' + enviados.length);
+  d.textContent = out.join('\n');
+};
 $('guardarPres').onclick = () => {
   const nuevo = {};
   $('presEditor').querySelectorAll('input').forEach(i => { const v = parseFloat(i.value); if (v > 0) nuevo[i.dataset.cat] = v; });
@@ -762,6 +794,7 @@ $('agregarIng').onclick = () => pintarEditor('ingEditor', [...leerEditor('ingEdi
 $('guardarIng').onclick = () => { ingresos = leerEditor('ingEditor').filter(f => f.n); escribir('mg_ingresos', ingresos); pintarEditor('ingEditor', ingresos); pintar(); toast('Ingresos fijos guardados'); };
 $('monto').addEventListener('keydown', e => { if (e.key === 'Enter') $('nota').focus(); });
 $('nota').addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
+$('sync').onclick = () => { if (ultimoError) toast(ultimoError); else sincronizar(); };
 window.addEventListener('online', sincronizar);
 window.addEventListener('offline', () => estadoSync());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { $('fecha').value = iso(new Date()); pintar(); sincronizar(); } });

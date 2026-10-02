@@ -10,14 +10,20 @@
  */
 const PIN = '1234';
 const HOJA = 'Registro';
+const VERSION = '2';
 const COLUMNAS = ['ID', 'Fecha', 'Tipo', 'Categoría', 'Monto', 'Nota', 'Método', 'Fijo', 'Registrado'];
 
 function doGet(e) {
-  const p = e.parameter || {};
-  if (String(p.pin) !== PIN) return json_({ ok: false, error: 'pin' });
-  if (p.action === 'ping') return json_({ ok: true });
-  if (p.action === 'list') return json_({ ok: true, items: listar_(p.desde, p.hasta) });
-  return json_({ ok: false, error: 'accion' });
+  try {
+    const p = e.parameter || {};
+    if (String(p.pin) !== PIN) return json_({ ok: false, error: 'pin' });
+    if (p.action === 'ping') return json_({ ok: true, version: VERSION });
+    if (p.action === 'list') return json_({ ok: true, items: listar_(p.desde, p.hasta) });
+    if (p.action === 'diag') return json_(diag_());
+    return json_({ ok: false, error: 'accion' });
+  } catch (err) {
+    return json_({ ok: false, error: 'script: ' + err.message });
+  }
 }
 
 function doPost(e) {
@@ -27,6 +33,14 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'json' });
   }
+  try {
+    return post_(b);
+  } catch (err) {
+    return json_({ ok: false, error: 'script: ' + err.message });
+  }
+}
+
+function post_(b) {
   if (String(b.pin) !== PIN) return json_({ ok: false, error: 'pin' });
 
   const lock = LockService.getScriptLock();
@@ -63,9 +77,12 @@ function agregar_(items) {
       ids.push(it.id);
       return;
     }
-    h.appendRow([
-      it.id,
-      it.fecha,
+    // La fecha se guarda como texto (2026-10-02) para que Sheets no la convierta.
+    const fila = h.getLastRow() + 1;
+    h.getRange(fila, 2).setNumberFormat('@');
+    h.getRange(fila, 1, 1, COLUMNAS.length).setValues([[
+      String(it.id),
+      String(it.fecha),
       it.tipo,
       it.categoria,
       Number(it.monto),
@@ -73,7 +90,7 @@ function agregar_(items) {
       it.metodo || '',
       it.fijo || '',
       new Date(),
-    ]);
+    ]]);
     existentes.add(String(it.id));
     ids.push(it.id);
   });
@@ -91,13 +108,14 @@ function listar_(desde, hasta) {
         fecha: fecha_(f[1]),
         tipo: f[2],
         categoria: f[3],
-        monto: Number(f[4]),
+        monto: monto_(f[4]),
         nota: f[5],
         metodo: f[6],
         fijo: f[7],
       };
     })
     .filter(function (it) {
+      if (!it.id || !it.fecha) return false;
       return (!desde || it.fecha >= desde) && (!hasta || it.fecha <= hasta);
     });
 }
@@ -112,9 +130,31 @@ function borrar_(id) {
   return true;
 }
 
+// Acepta la fecha como la haya guardado Sheets: fecha, número de serie o texto (2026-10-02 o 2/10/2026).
 function fecha_(v) {
-  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  return String(v);
+  const zona = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  if (v instanceof Date) return Utilities.formatDate(v, zona, 'yyyy-MM-dd');
+  if (typeof v === 'number') return Utilities.formatDate(new Date(Math.round((v - 25569) * 86400000)), 'UTC', 'yyyy-MM-dd');
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return t;
+}
+
+function monto_(v) {
+  if (typeof v === 'number') return v;
+  return Number(String(v).replace(/[$\s]/g, '').replace(',', '.')) || 0;
+}
+
+function diag_() {
+  const h = hoja_();
+  const n = Math.max(h.getLastRow() - 1, 0);
+  const muestra = n ? h.getRange(2, 1, Math.min(n, 3), COLUMNAS.length).getValues().map(function (f) {
+    return { id: f[0], fecha: String(f[1]) + ' [' + (f[1] instanceof Date ? 'fecha' : typeof f[1]) + ']', leida: fecha_(f[1]), monto: f[4] };
+  }) : [];
+  return { ok: true, version: VERSION, filas: n, zona: SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), muestra: muestra };
 }
 
 function json_(obj) {
