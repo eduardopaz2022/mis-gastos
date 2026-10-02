@@ -355,7 +355,7 @@ const CATS_BASE = [
   ['Deudas', '💳'], ['Ahorro', '💰'], ['Otros', '❓'],
 ];
 // Los ingresos de cada quincena se marcan en Fijos; aquí solo los extra.
-const CATS_INGRESO = [['Bono', '🎁'], ['Clases extra', '📚'], ['Venta', '🏷️'], ['Otros ingresos', '💵']];
+const CATS_INGRESO = [['Salario', '💼'], ['Bono', '🎁'], ['Clases extra', '📚'], ['Venta', '🏷️'], ['Otros ingresos', '💵']];
 const SIN_TOPE = ['Deudas', 'Ahorro'];
 // Para detallar qué tipo de gasto fue.
 const SUBTIPOS = {
@@ -380,6 +380,8 @@ const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
 let perfil = leer('mg_perfil', null);
 if (!perfil) { perfil = { tipo: leer('mg_cfg', null) ? 'eduardo' : 'nuevo' }; escribir('mg_perfil', perfil); }
 const NUEVO = perfil.tipo === 'nuevo';
+// Eduardo anota su sueldo con sus ingresos fijos; los demás necesitan "Salario" para anotarlo.
+const catsIngreso = () => NUEVO ? CATS_INGRESO : CATS_INGRESO.filter(c => c[0] !== 'Salario');
 let catList = leer('mg_catlist', null);
 if (!catList) {
   const extra = leer('mg_cats', []);
@@ -793,7 +795,7 @@ function pintarChips() {
   $('chips').hidden = tipo === 'Gasto';
   pintarCatsReg(); pintarSubs();
   if (tipo === 'Gasto') return;
-  const lista = CATS_INGRESO;
+  const lista = catsIngreso();
   const cont = $('chips'); cont.innerHTML = '';
   lista.forEach(([nombre, ico]) => {
     const b = document.createElement('button');
@@ -860,7 +862,7 @@ function editar(it) {
   const t = document.createElement('h3'); t.textContent = 'Cambiar ' + (it.tipo === 'Ingreso' ? 'ingreso' : 'gasto'); h.appendChild(t);
   const monto = campo('Monto', Object.assign(document.createElement('input'), { value: it.monto.toFixed(2), inputMode: 'decimal' }));
   const cat = campo('Categoría', document.createElement('select'));
-  const opciones = it.tipo === 'Ingreso' ? [...CATS_INGRESO.map(c => c[0]), ...ingresos.map(f => f.n)] : [...catsGasto().map(c => c[0]), 'Pagos fijos'];
+  const opciones = it.tipo === 'Ingreso' ? [...catsIngreso().map(c => c[0]), ...ingresos.map(f => f.n)] : [...catsGasto().map(c => c[0]), 'Pagos fijos'];
   [...new Set([it.categoria, ...opciones])].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = icono(n) + ' ' + n; if (n === it.categoria) o.selected = true; cat.appendChild(o); });
   const nota = campo('¿Qué fue?', Object.assign(document.createElement('input'), { value: it.nota || '', maxLength: 80 }));
   const fecha = campo('Fecha', Object.assign(document.createElement('input'), { type: 'date', value: it.fecha }));
