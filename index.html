@@ -101,6 +101,15 @@
   .nav-periodo h2 { font-size: 1rem; }
 
   .cat { margin-bottom: 12px; }
+  .cat.toca { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font: inherit; }
+  .cat.toca.on { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 1px var(--primary) inset; }
+  .cat-items { margin: -2px 0 12px; padding: 0 0 0 10px; border-left: 2px solid var(--line); }
+  .cat-items .mov { padding: 6px 0; }
+  .cat-items .mov .ico { display: none; }
+  .cat-top small { color: var(--muted); font-size: .75rem; margin-left: 4px; }
+  .subs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .sub { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 7px 12px; font: 500 .85rem 'Inter', sans-serif; }
+  .sub.on { border-color: var(--primary); background: var(--primary); color: #fff; }
   .cat-top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: 4px; }
   .barra { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
   .barra i { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
@@ -187,8 +196,10 @@
       <div class="paso"><i>2</i><span id="pasoCat">¿En qué?</span></div>
       <div class="pista" id="pistaIngreso" hidden>Tu sueldo de Lamatepec, Citalá y la tutoría se marcan en <b>Fijos</b>. Aquí anota solo ingresos extra.</div>
       <div class="chips" id="chips"></div>
-      <div class="paso"><i>3</i>Detalles (opcional)</div>
-      <div class="campo"><input id="nota" placeholder="¿Qué fue? Ej.: almuerzo con Abby" maxlength="80" autocomplete="off"></div>
+      <div id="catsReg"></div>
+      <div class="paso"><i>3</i><span id="pasoDet">¿Qué fue exactamente?</span></div>
+      <div class="subs" id="subs"></div>
+      <div class="campo"><input id="nota" placeholder="Detalle (opcional). Ej.: con Diego" maxlength="80" autocomplete="off"></div>
       <div class="fila">
         <input id="fecha" type="date">
         <select id="metodo"></select>
@@ -217,7 +228,7 @@
       <div class="libre" id="sLibre"></div>
     </div>
     <div class="card">
-      <div class="etiqueta">Gastos variables (gastado / tope)</div>
+      <div class="etiqueta">Gastos variables (gastado / tope) · toca uno para ver el detalle</div>
       <div id="cats"></div>
     </div>
     <div class="card">
@@ -295,6 +306,21 @@ const CATS_GASTO = [
 // Los ingresos de cada quincena se marcan en Fijos; aquí solo los extra.
 const CATS_INGRESO = [['Bono', '🎁'], ['Clases extra', '📚'], ['Venta', '🏷️'], ['Otros ingresos', '💵']];
 const SIN_TOPE = ['Deudas', 'Ahorro'];
+// Para detallar qué tipo de gasto fue.
+const SUBTIPOS = {
+  'Gasolina': ['Tanque lleno', 'Media carga'],
+  'Comida fuera': ['Desayuno', 'Almuerzo', 'Cena', 'Café o postre', 'Snack'],
+  'Súper': ['Walmart', 'Selectos', 'Despensa', 'Tienda'],
+  'Casa': ['Limpieza', 'Reparación', 'Cosas para la casa'],
+  'Novia y salidas': ['Salida', 'Comida', 'Regalo', 'Cine'],
+  'Carro': ['Mantenimiento', 'Repuesto', 'Parqueo', 'Lavado'],
+  'Personal': ['Dollarcity', 'Chinos', 'Ropa', 'Cuidado personal'],
+  'Familia': ['Ayuda', 'Regalo'],
+  'Deudas': ['Promerica', 'Tarjeta', 'Otra deuda'],
+  'Ahorro': ['Multimoney', 'Boda', 'Anillo', 'Fondo del carro'],
+  'Otros': ['Gasto hormiga', 'Imprevisto'],
+  'Bono': [], 'Clases extra': [], 'Venta': [], 'Otros ingresos': [],
+};
 const ICONOS = Object.fromEntries([...CATS_GASTO, ...CATS_INGRESO,
   ['Pagos fijos', '📌'], ['Lamatepec', '🏫'], ['Citalá', '🏫'], ['Tutoría', '📚'], ['Universidad', '🎓'], ['Suscripciones', '📱']].map(c => [c[0], c[1]]));
 // Nombres viejos que ya están en la Hoja.
@@ -496,10 +522,63 @@ async function borrar(item) {
 }
 
 // ---------- Vista: Registrar ----------
-let tipo = 'Gasto', categoria = null;
+let tipo = 'Gasto', categoria = null, subtipo = null;
+
+function gastadoPorCat(p) {
+  const porCat = {};
+  movimientos(p).filter(i => i.tipo === 'Gasto' && i.categoria !== 'Pagos fijos').forEach(i => { porCat[i.categoria] = (porCat[i.categoria] || 0) + i.monto; });
+  return porCat;
+}
+
+// Fila de categoría con lo gastado y su tope: se usa en Registrar y en Quincena.
+function filaCategoria(n, g, tope, cuantos) {
+  const d = document.createElement('button'); d.className = 'cat toca';
+  const top = document.createElement('div'); top.className = 'cat-top';
+  const a = document.createElement('span'); a.textContent = (ICONOS[n] || '•') + ' ' + n;
+  if (cuantos) { const c = document.createElement('small'); c.textContent = '(' + cuantos + ')'; a.appendChild(c); }
+  const b = document.createElement('span'); b.textContent = dinero(g) + (tope ? ' / ' + dinero(tope) : '');
+  if (tope && g > tope) b.className = 'rojo';
+  top.append(a, b);
+  d.appendChild(top);
+  if (tope || g) {
+    const barra = document.createElement('div'); barra.className = 'barra';
+    const i = document.createElement('i');
+    i.style.width = (tope ? Math.min(100, g / tope * 100) : (g > 0 ? 100 : 0)) + '%';
+    if (tope && g > tope) i.className = 'pasado'; else if (tope && g > tope * 0.8) i.className = 'alto';
+    if (!tope) i.style.opacity = .35;
+    barra.appendChild(i); d.appendChild(barra);
+  }
+  return d;
+}
+
+function pintarCatsReg() {
+  const c = $('catsReg'); c.innerHTML = '';
+  if (tipo !== 'Gasto') return;
+  const porCat = gastadoPorCat(periodoActual());
+  CATS_GASTO.forEach(([n]) => {
+    const f = filaCategoria(n, porCat[n] || 0, SIN_TOPE.includes(n) ? 0 : (pres[n] || 0));
+    if (categoria === n) f.classList.add('on');
+    f.onclick = () => { if (categoria !== n) subtipo = null; categoria = n; pintarCatsReg(); pintarSubs(); };
+    c.appendChild(f);
+  });
+}
+
+function pintarSubs() {
+  const c = $('subs'); c.innerHTML = '';
+  const lista = SUBTIPOS[categoria] || [];
+  $('pasoDet').textContent = !categoria ? 'Detalle (opcional)' : lista.length ? '¿Qué tipo de ' + categoria.toLowerCase() + ' fue?' : 'Detalle (opcional)';
+  lista.forEach(n => {
+    const b = document.createElement('button'); b.className = 'sub' + (subtipo === n ? ' on' : ''); b.textContent = n;
+    b.onclick = () => { subtipo = subtipo === n ? null : n; pintarSubs(); };
+    c.appendChild(b);
+  });
+}
 
 function pintarChips() {
-  const lista = tipo === 'Gasto' ? CATS_GASTO : CATS_INGRESO;
+  $('chips').hidden = tipo === 'Gasto';
+  pintarCatsReg(); pintarSubs();
+  if (tipo === 'Gasto') return;
+  const lista = CATS_INGRESO;
   const cont = $('chips'); cont.innerHTML = '';
   lista.forEach(([nombre, ico]) => {
     const b = document.createElement('button');
@@ -508,7 +587,7 @@ function pintarChips() {
     const t = document.createElement('span'); t.textContent = nombre;
     b.append(i, t);
     b.onclick = () => {
-      categoria = nombre;
+      categoria = nombre; subtipo = null;
       pintarChips();
     };
     cont.appendChild(b);
@@ -516,7 +595,7 @@ function pintarChips() {
 }
 
 function fijarTipo(t) {
-  tipo = t; categoria = null;
+  tipo = t; categoria = null; subtipo = null;
   $('tGasto').classList.toggle('on', t === 'Gasto');
   $('tIngreso').classList.toggle('on', t === 'Ingreso');
   $('pistaIngreso').hidden = t !== 'Ingreso';
@@ -530,7 +609,7 @@ async function guardar() {
   if (!categoria) { toast('Elige una categoría'); return; }
   const item = {
     id: nuevoId(), fecha: $('fecha').value || iso(new Date()), tipo, categoria,
-    monto: Math.round(monto * 100) / 100, nota: $('nota').value.trim(), metodo: $('metodo').value, fijo: '',
+    monto: Math.round(monto * 100) / 100, nota: [subtipo, $('nota').value.trim()].filter(Boolean).join(' · '), metodo: $('metodo').value, fijo: '',
   };
   $('monto').value = ''; $('nota').value = ''; fijarTipo('Gasto');
   await agregar(item);
@@ -568,6 +647,7 @@ function pintarUltimos() {
 let periodoVista = periodoDe(new Date());
 const periodoActual = () => periodoDe(new Date());
 
+let catAbierta = null;
 function pintarQuincena() {
   const p = periodoVista;
   $('pTitulo').textContent = corta(p.ini) + ' – ' + corta(p.fin);
@@ -585,29 +665,23 @@ function pintarQuincena() {
   $('sLibre').append(document.createElement('br'));
   linea('Libre de verdad: ', libre);
 
-  const porCat = {};
-  movs.filter(i => i.tipo === 'Gasto' && i.categoria !== 'Pagos fijos').forEach(i => { porCat[i.categoria] = (porCat[i.categoria] || 0) + i.monto; });
+  const porCat = gastadoPorCat(p);
   const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !SIN_TOPE.includes(k) && CATS_GASTO.some(c => c[0] === k)), ...Object.keys(porCat)])]
     .sort((a, b) => (porCat[b] || 0) - (porCat[a] || 0));
   const c = $('cats'); c.innerHTML = '';
   if (!nombres.length) c.innerHTML = '<div class="vacio">Sin gastos todavía.</div>';
   nombres.forEach(n => {
-    const g = porCat[n] || 0, tope = pres[n] || 0;
-    const d = document.createElement('div'); d.className = 'cat';
-    const top = document.createElement('div'); top.className = 'cat-top';
-    const a = document.createElement('span'); a.textContent = (ICONOS[n] || '•') + ' ' + n;
-    const b = document.createElement('span'); b.textContent = dinero(g) + (tope ? ' / ' + dinero(tope) : '');
-    if (tope && g > tope) b.className = 'rojo';
-    top.append(a, b);
-    const barra = document.createElement('div'); barra.className = 'barra';
-    const i = document.createElement('i');
-    const pct = tope ? Math.min(100, g / tope * 100) : (g > 0 ? 100 : 0);
-    i.style.width = pct + '%';
-    if (tope && g > tope) i.className = 'pasado'; else if (tope && g > tope * 0.8) i.className = 'alto';
-    if (!tope) i.style.opacity = .35;
-    barra.appendChild(i);
-    d.append(top, barra);
-    c.appendChild(d);
+    const items = movs.filter(i => i.tipo === 'Gasto' && i.categoria === n);
+    const f = filaCategoria(n, porCat[n] || 0, SIN_TOPE.includes(n) ? 0 : (pres[n] || 0), items.length);
+    c.appendChild(f);
+    if (catAbierta === n) {
+      f.classList.add('on');
+      const det = document.createElement('div'); det.className = 'cat-items';
+      if (!items.length) det.innerHTML = '<div class="vacio">Nada todavía.</div>';
+      items.forEach(it => det.appendChild(filaMov(it)));
+      c.appendChild(det);
+    }
+    f.onclick = () => { catAbierta = catAbierta === n ? null : n; pintarQuincena(); };
   });
 
   const m = $('movs'); m.innerHTML = '';
@@ -751,7 +825,7 @@ function pintar() {
   const p = periodoActual();
   $('hdrPeriodo').textContent = 'Quincena del ' + p.q + ' · ' + corta(p.ini) + ' – ' + corta(p.fin);
   $('rLibre').textContent = dinero(resumen(p).libre);
-  pintarUltimos(); pintarQuincena(); pintarFijos(); estadoSync();
+  pintarUltimos(); pintarQuincena(); pintarFijos(); pintarCatsReg(); estadoSync();
 }
 
 document.querySelectorAll('[data-ir]').forEach(b => b.addEventListener('click', () => ir(b.dataset.ir)));
