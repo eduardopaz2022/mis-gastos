@@ -517,7 +517,14 @@ async function apiHoja(metodo, datos) {
 
 // ---------- Cuenta en la nube (Firebase) ----------
 // Pega aquí la configuración de tu proyecto (Configuración del proyecto > Tus apps > Web).
-const FIREBASE = null;
+const FIREBASE = {
+  apiKey: 'AIzaSyBfK3v6FR-kmfbYixmzAEne6xQYKpA6r64',
+  authDomain: 'mis-gastos-7850b.firebaseapp.com',
+  projectId: 'mis-gastos-7850b',
+  storageBucket: 'mis-gastos-7850b.firebasestorage.app',
+  messagingSenderId: '491832528625',
+  appId: '1:491832528625:web:0f26f0d7097ad104546350',
+};
 const FB_VERSION = '10.12.2';
 var usuario = null, fb = null, fbListo = false, subidaPendiente = null, aplicandoNube = false;
 
