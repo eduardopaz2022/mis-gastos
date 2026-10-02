@@ -118,7 +118,8 @@
   .mov .info div { font-weight: 600; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mov .info small { color: var(--muted); font-size: .76rem; }
   .mov .m { font-weight: 700; font-size: .95rem; white-space: nowrap; }
-  .mov .x { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; padding: 4px; }
+  .mov .x, .fijo .x { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; padding: 4px; }
+  .mov .x.armado { color: var(--bad); font: 700 .8rem 'Inter', sans-serif; }
   .pend { font-size: .7rem; background: var(--primary-soft); color: var(--primary); padding: 1px 6px; border-radius: 99px; margin-left: 4px; }
   .vacio { color: var(--muted); text-align: center; padding: 14px 0; font-size: .9rem; }
 
@@ -128,6 +129,7 @@
   .fijo .info div { font-weight: 600; }
   .fijo .info small { color: var(--muted); }
   .fijo.hecho .info div { text-decoration: line-through; color: var(--muted); }
+  .monto-fijo { width: 84px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: 600 .95rem 'Inter', sans-serif; text-align: right; }
   .ok-tag { background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 99px; }
 
   .editor-fila { display: grid; grid-template-columns: 1fr 78px 74px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
@@ -283,13 +285,11 @@ const FIJOS_INICIAL = [
   { n: 'Internet casa', m: 29.99, q: '15' },
   { n: 'YouTube Premium', m: 2.66, q: '15' },
   { n: 'Amilcar', m: 32.08, q: '15' },
-  { n: 'Universidad (mitad)', m: 35, q: '15' },
-  { n: 'Servicios casa (mitad)', m: 36.38, q: '15' },
   { n: 'Aporte Opus Dei', m: 10, q: '15' },
   { n: 'Cuchubal', m: 25, q: '30' },
   { n: 'Amilcar', m: 32.16, q: '30' },
-  { n: 'Universidad (mitad)', m: 35, q: '30' },
-  { n: 'Servicios casa (mitad)', m: 36.39, q: '30' },
+  { n: 'Universidad', m: 70, q: '30' },
+  { n: 'Servicios casa', m: 72.77, q: '30' },
   { n: 'Fondo casa', m: 12.68, q: '30' },
   { n: 'Luz', m: 11.64, q: '30' },
   { n: 'Internet celular', m: 14.97, q: '30' },
@@ -306,6 +306,13 @@ function escribir(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 let cfg = leer('mg_cfg', { url: '', pin: '' });
 let pres = leer('mg_pres', PRES_INICIAL);
 let fijos = leer('mg_fijos', FIJOS_INICIAL);
+// Antes la universidad y la casa iban por mitades en cada quincena; ahora van completas el 30.
+if (fijos.some(f => /\(mitad\)/.test(f.n))) {
+  fijos = fijos.filter(f => !(/\(mitad\)/.test(f.n) && f.q === '15')).map(f =>
+    f.n === 'Universidad (mitad)' ? { n: 'Universidad', m: 70, q: f.q } :
+    f.n === 'Servicios casa (mitad)' ? { n: 'Servicios casa', m: 72.77, q: f.q } : f);
+  escribir('mg_fijos', fijos);
+}
 let cola = leer('mg_cola', []);          // registros que aún no llegan a la Hoja
 let cache = leer('mg_cache', {});        // registros ya guardados, por quincena
 
@@ -415,7 +422,6 @@ async function agregar(item) {
 }
 
 async function borrar(item) {
-  if (!confirm('¿Borrar "' + (item.nota || item.categoria) + '" de ' + dinero(item.monto) + '?')) return;
   if (item.pendiente) {
     cola = cola.filter(i => String(i.id) !== String(item.id));
     escribir('mg_cola', cola);
@@ -485,7 +491,11 @@ function filaMov(it) {
   const m = document.createElement('div'); m.className = 'm ' + (it.tipo === 'Ingreso' ? 'verde' : '');
   m.textContent = (it.tipo === 'Ingreso' ? '+' : '−') + dinero(it.monto);
   const x = document.createElement('button'); x.className = 'x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Borrar');
-  x.onclick = () => borrar(it);
+  x.onclick = () => {
+    if (x.dataset.armado) { borrar(it); return; }
+    x.dataset.armado = '1'; x.textContent = '¿Borrar?'; x.classList.add('armado');
+    setTimeout(() => { delete x.dataset.armado; x.textContent = '✕'; x.classList.remove('armado'); }, 3000);
+  };
   div.append(ico, info, m, x);
   return div;
 }
@@ -576,14 +586,22 @@ function pintarFijos() {
       d.appendChild(ok);
     } else {
       const b = document.createElement('button'); b.className = 'btn sec peq'; b.textContent = 'Pagado';
-      b.onclick = async () => {
-        const v = prompt('Monto pagado de ' + f.n, f.m.toFixed(2));
-        if (v === null) return;
-        const monto = parseFloat(String(v).replace(',', '.'));
-        if (!(monto > 0)) return;
-        await agregar({ id: nuevoId(), fecha: iso(new Date()), tipo: 'Gasto', categoria: 'Pagos fijos',
-          monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
-        toast(f.n + ' marcado como pagado');
+      b.onclick = () => {
+        // Se confirma el monto en la misma fila: algunos navegadores bloquean las ventanas emergentes.
+        const inp = document.createElement('input'); inp.className = 'monto-fijo'; inp.inputMode = 'decimal';
+        inp.value = f.m.toFixed(2); inp.setAttribute('aria-label', 'Monto pagado de ' + f.n);
+        const ok = document.createElement('button'); ok.className = 'btn peq'; ok.textContent = '✓'; ok.setAttribute('aria-label', 'Confirmar');
+        const no = document.createElement('button'); no.className = 'x'; no.textContent = '✕'; no.setAttribute('aria-label', 'Cancelar');
+        no.onclick = pintarFijos;
+        ok.onclick = async () => {
+          const monto = parseFloat(String(inp.value).replace(',', '.'));
+          if (!(monto > 0)) { toast('Escribe el monto'); inp.focus(); return; }
+          await agregar({ id: nuevoId(), fecha: iso(new Date()), tipo: 'Gasto', categoria: 'Pagos fijos',
+            monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
+          toast(f.n + ' marcado como pagado');
+        };
+        b.replaceWith(inp, ok, no);
+        inp.focus(); inp.select();
       };
       d.appendChild(b);
     }
