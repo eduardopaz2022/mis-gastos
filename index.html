@@ -124,6 +124,11 @@
   .hoja label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin: 0 0 4px; }
   .nueva-cat { display: grid; grid-template-columns: 52px 1fr 76px; gap: 6px; margin-top: 10px; }
   .nueva-cat input { padding: 8px; font-size: .9rem; }
+  .cat-fila { display: grid; grid-template-columns: 48px 1fr 72px 26px; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .cat-fila input { padding: 8px; font-size: .9rem; }
+  .cat-fila input[data-k=ico] { text-align: center; font-size: 1.1rem; padding: 6px 2px; }
+  .cat-fila input:disabled { background: var(--bg); }
+  .cat-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; }
   .pres-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; margin-left: 6px; }
   .cat-top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: 4px; }
   .barra { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
@@ -277,10 +282,10 @@
       <pre id="diag" class="diag" hidden></pre>
     </div>
     <div class="card">
-      <div class="etiqueta">Topes para gastos variables</div>
-      <p class="ayuda">Lo máximo que te permites gastar por quincena en lo que cambia cada vez. Los pagos fijos no van aquí: tienen su lista abajo.</p>
+      <div class="etiqueta">Categorías y topes</div>
+      <p class="ayuda">Puedes cambiar el emoji y el nombre de cualquier categoría. El tope es lo máximo que te permites gastar por quincena. Los pagos fijos van aparte, abajo.</p>
       <div id="presEditor"></div>
-      <button class="btn sec" id="guardarPres" style="margin-top:8px">Guardar topes</button>
+      <button class="btn sec" id="guardarPres" style="margin-top:8px">Guardar categorías y topes</button>
       <div class="etiqueta" style="margin-top:16px">Nueva categoría</div>
       <div class="nueva-cat">
         <input id="ncIco" placeholder="🏷️" maxlength="4" aria-label="Emoji">
@@ -346,12 +351,25 @@ const SUBTIPOS = {
 const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
   ['Pagos fijos', '📌'], ['Lamatepec', '🏫'], ['Citalá', '🏫'], ['Tutoría', '📚'], ['Universidad', '🎓'], ['Suscripciones', '📱']].map(c => [c[0], c[1]]));
 // Nombres viejos que ya están en la Hoja.
-let catsExtra = leer('mg_cats', []); // categorías que agregaste: [[nombre, emoji], ...]
-// Las tuyas van antes de "Otros".
-const catsGasto = () => [...CATS_BASE.filter(c => c[0] !== 'Otros'), ...catsExtra, ...CATS_BASE.filter(c => c[0] === 'Otros')];
-const icono = n => ICONOS[n] || (catsExtra.find(c => c[0] === n) || [])[1] || '•';
+// Categorías de gasto (editables): { n: nombre, ico: emoji, base: nombre original o null si la creaste tú }.
+let catList = leer('mg_catlist', null);
+if (!catList) {
+  const extra = leer('mg_cats', []);
+  catList = [...CATS_BASE.filter(c => c[0] !== 'Otros').map(c => ({ n: c[0], ico: c[1], base: c[0] })),
+    ...extra.map(c => ({ n: c[0], ico: c[1], base: null })),
+    ...CATS_BASE.filter(c => c[0] === 'Otros').map(c => ({ n: c[0], ico: c[1], base: c[0] }))];
+}
+let renombres = leer('mg_renombres', {}); // nombre viejo -> nombre nuevo, para lo que ya está en la Hoja
+const catsGasto = () => catList.map(c => [c.n, c.ico]);
+const icono = n => (catList.find(c => c.n === n) || {}).ico || ICONOS[n] || '•';
+const baseDe = n => (catList.find(c => c.n === n) || {}).base || n;
+const sinTope = n => SIN_TOPE.includes(baseDe(n));
 const ALIAS = { 'Colegio mañana': 'Lamatepec' };
-const normalizar = it => (ALIAS[it.categoria] ? { ...it, categoria: ALIAS[it.categoria] } : it);
+function normalizar(it) {
+  let c = ALIAS[it.categoria] || it.categoria;
+  if (renombres[c]) c = renombres[c];
+  return c === it.categoria ? it : { ...it, categoria: c };
+}
 const METODOS = ['Débito Cuscatlán', 'Efectivo', 'Promerica', 'Multimoney', 'Otro'];
 
 const PRES_INICIAL = {
@@ -582,7 +600,7 @@ function pintarCatsReg() {
   if (tipo !== 'Gasto') return;
   const porCat = gastadoPorCat(periodoActual());
   catsGasto().forEach(([n]) => {
-    const f = filaCategoria(n, porCat[n] || 0, SIN_TOPE.includes(n) ? 0 : (pres[n] || 0));
+    const f = filaCategoria(n, porCat[n] || 0, sinTope(n) ? 0 : (pres[n] || 0));
     if (categoria === n) f.classList.add('on');
     f.onclick = () => { if (categoria !== n) subtipo = null; categoria = n; pintarCatsReg(); pintarSubs(); };
     c.appendChild(f);
@@ -591,7 +609,7 @@ function pintarCatsReg() {
 
 function pintarSubs() {
   const c = $('subs'); c.innerHTML = '';
-  const lista = SUBTIPOS[categoria] || [];
+  const lista = SUBTIPOS[categoria] || SUBTIPOS[baseDe(categoria)] || [];
   $('pasoDet').textContent = !categoria ? 'Detalle (opcional)' : lista.length ? '¿Qué tipo de ' + categoria.toLowerCase() + ' fue?' : 'Detalle (opcional)';
   lista.forEach(n => {
     const b = document.createElement('button'); b.className = 'sub' + (subtipo === n ? ' on' : ''); b.textContent = n;
@@ -735,13 +753,13 @@ function pintarQuincena() {
   linea('Libre de verdad: ', libre);
 
   const porCat = gastadoPorCat(p);
-  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !SIN_TOPE.includes(k) && catsGasto().some(c => c[0] === k)), ...Object.keys(porCat)])]
+  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !sinTope(k) && catsGasto().some(c => c[0] === k)), ...Object.keys(porCat)])]
     .sort((a, b) => (porCat[b] || 0) - (porCat[a] || 0));
   const c = $('cats'); c.innerHTML = '';
   if (!nombres.length) c.innerHTML = '<div class="vacio">Sin gastos todavía.</div>';
   nombres.forEach(n => {
     const items = movs.filter(i => i.tipo === 'Gasto' && i.categoria === n);
-    const f = filaCategoria(n, porCat[n] || 0, SIN_TOPE.includes(n) ? 0 : (pres[n] || 0), items.length);
+    const f = filaCategoria(n, porCat[n] || 0, sinTope(n) ? 0 : (pres[n] || 0), items.length);
     c.appendChild(f);
     if (catAbierta === n) {
       f.classList.add('on');
@@ -850,16 +868,20 @@ function pintarLista(c, lista, p) {
 function pintarAjustes() {
   $('cfgUrl').value = cfg.url; $('cfgPin').value = cfg.pin;
   const pe = $('presEditor'); pe.innerHTML = '';
-  catsGasto().filter(([n]) => !SIN_TOPE.includes(n)).forEach(([n, ico]) => {
-    const f = document.createElement('div'); f.className = 'pres-fila';
-    const l = document.createElement('span'); l.textContent = ico + ' ' + n;
-    if (catsExtra.some(c => c[0] === n)) {
-      const q = document.createElement('button'); q.className = 'quitar'; q.textContent = '✕'; q.setAttribute('aria-label', 'Quitar ' + n);
-      q.onclick = () => { catsExtra = catsExtra.filter(c => c[0] !== n); escribir('mg_cats', catsExtra); delete pres[n]; escribir('mg_pres', pres); pintarAjustes(); pintar(); toast(n + ' quitada'); };
-      l.appendChild(q);
-    }
-    const i = document.createElement('input'); i.inputMode = 'decimal'; i.dataset.cat = n; i.value = pres[n] || ''; i.placeholder = '0';
-    f.append(l, i); pe.appendChild(f);
+  catList.forEach((c, idx) => {
+    const f = document.createElement('div'); f.className = 'cat-fila';
+    const ico = Object.assign(document.createElement('input'), { value: c.ico, maxLength: 4 }); ico.dataset.k = 'ico'; ico.setAttribute('aria-label', 'Emoji');
+    const nom = Object.assign(document.createElement('input'), { value: c.n, maxLength: 24 }); nom.dataset.k = 'n'; nom.setAttribute('aria-label', 'Nombre');
+    const tope = Object.assign(document.createElement('input'), { value: pres[c.n] || '', placeholder: sinTope(c.n) ? 'sin tope' : '0', inputMode: 'decimal' });
+    tope.dataset.k = 'tope'; tope.disabled = sinTope(c.n); tope.setAttribute('aria-label', 'Tope');
+    f.dataset.idx = idx;
+    f.append(ico, nom, tope);
+    if (!c.base) {
+      const q = document.createElement('button'); q.className = 'quitar'; q.textContent = '✕'; q.setAttribute('aria-label', 'Quitar ' + c.n);
+      q.onclick = () => { catList = catList.filter(x => x !== c); escribir('mg_catlist', catList); delete pres[c.n]; escribir('mg_pres', pres); pintarAjustes(); pintar(); toast(c.n + ' quitada'); };
+      f.appendChild(q);
+    } else f.appendChild(document.createElement('span'));
+    pe.appendChild(f);
   });
   pintarEditor('ingEditor', ingresos);
   pintarEditor('fijosEditor', fijos);
@@ -935,16 +957,41 @@ $('agregarCat').onclick = () => {
   const n = $('ncNom').value.trim();
   if (!n) { toast('Escribe el nombre'); $('ncNom').focus(); return; }
   if (catsGasto().some(c => c[0].toLowerCase() === n.toLowerCase())) { toast('Esa categoría ya existe'); return; }
-  catsExtra = [...catsExtra, [n, $('ncIco').value.trim() || '🏷️']]; escribir('mg_cats', catsExtra);
+  const otros = catList.findIndex(c => c.base === 'Otros');
+  const nueva = { n, ico: $('ncIco').value.trim() || '🏷️', base: null };
+  catList = otros >= 0 ? [...catList.slice(0, otros), nueva, ...catList.slice(otros)] : [...catList, nueva];
+  escribir('mg_catlist', catList);
+  delete renombres[n]; escribir('mg_renombres', renombres);
   const t = parseFloat(String($('ncTope').value).replace(',', '.'));
   if (t > 0) { pres[n] = t; escribir('mg_pres', pres); }
   $('ncNom').value = ''; $('ncIco').value = ''; $('ncTope').value = '';
   pintarAjustes(); pintar(); toast(n + ' agregada');
 };
 $('guardarPres').onclick = () => {
-  const nuevo = {};
-  $('presEditor').querySelectorAll('input').forEach(i => { const v = parseFloat(i.value); if (v > 0) nuevo[i.dataset.cat] = v; });
-  pres = nuevo; escribir('mg_pres', pres); pintar(); toast('Topes guardados');
+  const filas = [...$('presEditor').children];
+  const nombres = filas.map(f => f.querySelector('[data-k=n]').value.trim());
+  if (nombres.some(n => !n)) { toast('Ninguna categoría puede quedar sin nombre'); return; }
+  if (new Set(nombres.map(n => n.toLowerCase())).size !== nombres.length) { toast('Hay dos categorías con el mismo nombre'); return; }
+  const nuevoPres = {}, nuevaLista = [];
+  filas.forEach((f, k) => {
+    const c = catList[+f.dataset.idx], n = nombres[k];
+    if (c.n !== n) {
+      // Lo que ya estaba guardado con el nombre viejo pasa al nuevo.
+      for (const v in renombres) if (renombres[v] === c.n) renombres[v] = n;
+      renombres[c.n] = n;
+      if (categoria === c.n) categoria = n;
+    }
+    nuevaLista.push({ ...c, n, ico: f.querySelector('[data-k=ico]').value.trim() || c.ico });
+    const t = parseFloat(String(f.querySelector('[data-k=tope]').value).replace(',', '.'));
+    if (t > 0 && !SIN_TOPE.includes(c.base)) nuevoPres[n] = t;
+  });
+  for (const n of nombres) delete renombres[n]; // un nombre en uso no se redirige
+  catList = nuevaLista; pres = nuevoPres;
+  escribir('mg_catlist', catList); escribir('mg_pres', pres); escribir('mg_renombres', renombres);
+  for (const k in cache) cache[k] = cache[k].map(normalizar);
+  cola = cola.map(normalizar); enviados = enviados.map(normalizar);
+  escribir('mg_cache', cache); escribir('mg_cola', cola); escribir('mg_enviados', enviados);
+  pintarAjustes(); pintar(); toast('Categorías guardadas');
 };
 $('agregarFijo').onclick = () => pintarEditor('fijosEditor', [...leerEditor('fijosEditor'), { n: '', m: 0, q: periodoActual().q }]);
 $('guardarFijos').onclick = () => { fijos = leerEditor('fijosEditor').filter(f => f.n); escribir('mg_fijos', fijos); pintarEditor('fijosEditor', fijos); pintar(); toast('Pagos fijos guardados'); };
