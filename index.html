@@ -34,6 +34,7 @@
     --bad-soft: #f8e6ee;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
   body {
     font-family: 'Inter', system-ui, sans-serif;
     background: var(--bg);
@@ -164,6 +165,7 @@
   .ok-tag { background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 99px; }
 
   .diag { margin-top: 10px; background: var(--bg); border-radius: 10px; padding: 10px; font: 12px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+  .o { text-align: center; color: var(--muted); font-size: .8rem; margin: 12px 0; }
   .ayuda { font-size: .82rem; color: var(--muted); margin: -2px 0 12px; line-height: 1.4; }
   .editor-fila { display: grid; grid-template-columns: 1fr 78px 74px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
   .editor-fila input, .editor-fila select { padding: 8px; font-size: .85rem; }
@@ -202,9 +204,10 @@
   <!-- REGISTRAR -->
   <section class="vista activa" id="v-registrar">
     <div class="aviso" id="avisoConfig" hidden>
-      <b>Bienvenido a Mis Gastos.</b> Tus gastos se guardan en una Hoja de Google tuya, que solo tú ves. Prepararla toma unos 10 minutos.
-      <div class="fila" style="margin:8px 0 0"><a class="btn sec peq" href="guia.html" style="text-align:center;text-decoration:none">Ver la guía</a><button class="btn sec peq" data-ir="ajustes">Ya la tengo</button></div>
-      <div class="pista" style="margin:8px 0 0">Mientras tanto puedes anotar igual: todo queda en tu celular y se envía cuando la conectes.</div>
+      <b>Bienvenido a Mis Gastos.</b> <span id="avisoTexto">Tus gastos se guardan en una Hoja de Google tuya, que solo tú ves. Prepararla toma unos 10 minutos.</span>
+      <div class="fila" style="margin:8px 0 0" id="avisoHoja"><a class="btn sec peq" href="guia.html" style="text-align:center;text-decoration:none">Ver la guía</a><button class="btn sec peq" data-ir="ajustes">Ya la tengo</button></div>
+      <div id="avisoNube" hidden style="margin-top:8px"><button class="btn peq" data-ir="ajustes">Entrar o crear cuenta</button></div>
+      <div class="pista" style="margin:8px 0 0">Mientras tanto puedes anotar igual: todo queda en tu celular y se guarda en tu cuenta cuando entres.</div>
     </div>
     <div class="resumen"><div><small>Libre de verdad esta quincena</small><b id="rLibre">$0.00</b></div><button data-ir="quincena">Ver detalle ›</button></div>
     <div class="card">
@@ -274,7 +277,23 @@
 
   <!-- AJUSTES -->
   <section class="vista" id="v-ajustes">
-    <div class="card">
+    <div class="card" id="cuenta" hidden>
+      <div class="etiqueta">Tu cuenta</div>
+      <div id="cuentaFuera">
+        <p class="ayuda">Entra para guardar tus gastos en la nube y verlos desde cualquier celular. Solo tú los ves.</p>
+        <button class="btn" id="entrarGoogle">Entrar con Google</button>
+        <div class="o">o con tu correo</div>
+        <div class="campo"><input id="authCorreo" type="email" placeholder="Correo" autocomplete="email"></div>
+        <div class="campo"><input id="authClave" type="password" placeholder="Contraseña (mínimo 6)" autocomplete="current-password"></div>
+        <div class="fila" style="margin-bottom:6px"><button class="btn sec" id="entrarCorreo">Entrar</button><button class="btn sec" id="crearCuenta">Crear cuenta</button></div>
+        <button class="enlace" id="olvide">Olvidé mi contraseña</button>
+      </div>
+      <div id="cuentaDentro" hidden>
+        <p>Entraste como <b id="cuentaCorreo"></b>. Tus gastos y ajustes se guardan en tu cuenta.</p>
+        <button class="btn sec" id="salir" style="margin-top:10px">Cerrar sesión</button>
+      </div>
+    </div>
+    <div class="card" id="cardHoja">
       <div class="etiqueta">Conexión con tu Hoja de Google</div>
       <div class="campo"><input id="cfgUrl" placeholder="URL de la aplicación web (termina en /exec)" autocomplete="off"></div>
       <div class="campo"><input id="cfgPin" placeholder="PIN" inputmode="numeric" autocomplete="off"></div>
@@ -325,6 +344,10 @@
 <div id="toast"></div>
 
 <script>
+// Lo que se guarda en tu cuenta además de los movimientos.
+const CLAVES_CONFIG = ['mg_pres', 'mg_fijos', 'mg_ingresos', 'mg_catlist', 'mg_renombres', 'mg_omitidos'];
+// Lo que la app guarda sola al arrancar no cuenta como cambio tuyo (no debe pisar lo de la nube).
+let arrancado = false;
 // ---------- Datos base ----------
 const CATS_BASE = [
   ['Gasolina', '⛽'], ['Comida fuera', '🍔'], ['Súper', '🛒'], ['Casa', '🏠'],
@@ -411,7 +434,10 @@ const FIJOS_INICIAL = [
 
 // ---------- Almacenamiento local ----------
 function leer(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
-function escribir(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function escribir(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+  if (arrancado && CLAVES_CONFIG.includes(k)) { try { localStorage.setItem('mg_config_ts', String(Date.now())); } catch (e) {} programarSubida(); }
+}
 
 let cfg = leer('mg_cfg', { url: '', pin: '' });
 let pres = leer('mg_pres', NUEVO ? {} : PRES_INICIAL);
@@ -468,7 +494,11 @@ function periodoVecino(p, paso) {
 }
 
 // ---------- Conexión con la Hoja ----------
+const conectado = () => !!usuario || !!cfg.url;
 async function api(metodo, datos) {
+  return usuario ? apiNube(datos) : apiHoja(metodo, datos);
+}
+async function apiHoja(metodo, datos) {
   if (!cfg.url) throw new Error('sin-url');
   let r;
   if (metodo === 'GET') {
@@ -485,9 +515,134 @@ async function api(metodo, datos) {
   return j;
 }
 
+// ---------- Cuenta en la nube (Firebase) ----------
+// Pega aquí la configuración de tu proyecto (Configuración del proyecto > Tus apps > Web).
+const FIREBASE = null;
+const FB_VERSION = '10.12.2';
+var usuario = null, fb = null, fbListo = false, subidaPendiente = null, aplicandoNube = false;
+
+async function iniciarFirebase() {
+  if (!FIREBASE) return;
+  const base = 'https://www.gstatic.com/firebasejs/' + FB_VERSION + '/';
+  try {
+    const [a, au, fs] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+    const app = a.initializeApp(FIREBASE);
+    fb = { au, fs, auth: au.getAuth(app), db: fs.getFirestore(app) };
+  } catch (e) { fbListo = true; pintarCuenta(); estadoSync(); return; }
+  fb.au.onAuthStateChanged(fb.auth, async u => {
+    usuario = u; fbListo = true;
+    if (u) { try { await alEntrar(u); } catch (e) { toast('No se pudo leer tu cuenta: ' + e.message); } }
+    pintarCuenta(); estadoSync(); pintar();
+    if (u) sincronizar();
+  });
+}
+
+const movsDe = () => fb.fs.collection(fb.db, 'usuarios', usuario.uid, 'movs');
+async function apiNube(d) {
+  const { fs } = fb;
+  if (d.action === 'ping') return { ok: true };
+  if (d.action === 'list') {
+    const cond = [];
+    if (d.desde) cond.push(fs.where('fecha', '>=', d.desde));
+    if (d.hasta) cond.push(fs.where('fecha', '<=', d.hasta));
+    const snap = await fs.getDocs(fs.query(movsDe(), ...cond));
+    return { ok: true, items: snap.docs.map(x => ({ ...x.data(), id: x.id })) };
+  }
+  if (d.action === 'add') {
+    for (let i = 0; i < d.items.length; i += 400) {
+      const lote = fs.writeBatch(fb.db);
+      d.items.slice(i, i + 400).forEach(it => {
+        const { pendiente, ...limpio } = it;
+        lote.set(fs.doc(movsDe(), String(it.id)), { ...limpio, id: String(it.id), registrado: Date.now() });
+      });
+      await lote.commit();
+    }
+    return { ok: true, ids: d.items.map(i => i.id) };
+  }
+  if (d.action === 'delete') { await fs.deleteDoc(fs.doc(movsDe(), String(d.id))); return { ok: true, borrado: true }; }
+  if (d.action === 'diag') {
+    const snap = await fs.getDocs(movsDe());
+    return { ok: true, version: 'nube', filas: snap.size, zona: Intl.DateTimeFormat().resolvedOptions().timeZone, muestra: [] };
+  }
+  throw new Error('accion');
+}
+
+function configLocal() { return { pres, fijos, ingresos, catList, renombres, omitidos }; }
+function programarSubida() {
+  if (!usuario || aplicandoNube) return;
+  clearTimeout(subidaPendiente);
+  subidaPendiente = setTimeout(async () => {
+    try {
+      await fb.fs.setDoc(fb.fs.doc(fb.db, 'usuarios', usuario.uid), { config: JSON.parse(JSON.stringify(configLocal())), actualizado: Number(leer('mg_config_ts', 0)) || Date.now() }, { merge: true });
+    } catch (e) { /* se reintenta en el próximo cambio o al entrar */ }
+  }, 800);
+}
+
+async function alEntrar(u) {
+  // Otra cuenta en este celular: se empieza limpio.
+  if (leer('mg_uid', null) && leer('mg_uid', null) !== u.uid) { borrarLocal(); escribirSimple('mg_uid', u.uid); location.reload(); return; }
+  escribirSimple('mg_uid', u.uid);
+  const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'usuarios', u.uid));
+  const nube = snap.exists() ? snap.data() : null;
+  const tsLocal = Number(leer('mg_config_ts', 0)) || 0;
+  if (nube && nube.config && (nube.actualizado || 0) >= tsLocal) {
+    aplicandoNube = true;
+    const c = nube.config;
+    if (c.pres) { pres = c.pres; escribir('mg_pres', pres); }
+    if (c.fijos) { fijos = c.fijos; escribir('mg_fijos', fijos); }
+    if (c.ingresos) { ingresos = c.ingresos; escribir('mg_ingresos', ingresos); }
+    if (c.catList) { catList = c.catList; escribir('mg_catlist', catList); }
+    if (c.renombres) { renombres = c.renombres; escribir('mg_renombres', renombres); }
+    if (c.omitidos) { omitidos = c.omitidos; escribir('mg_omitidos', omitidos); }
+    escribirSimple('mg_config_ts', String(nube.actualizado || Date.now()));
+    aplicandoNube = false;
+  } else {
+    programarSubida();
+  }
+  // Primera vez con cuenta y con Hoja conectada: se traen los gastos de la Hoja.
+  if (cfg.url && !leer('mg_migrado', false)) await migrarHoja();
+}
+
+async function migrarHoja() {
+  try {
+    toast('Pasando tus gastos de la Hoja a tu cuenta…');
+    const r = await apiHoja('GET', { action: 'list', desde: '0000-01-01', hasta: '9999-12-31' });
+    const items = r.items.map(normalizar);
+    if (items.length) await apiNube({ action: 'add', items });
+    escribirSimple('mg_migrado', true);
+    enviados = []; escribirSimple('mg_enviados', enviados);
+    toast(items.length + ' movimientos pasados a tu cuenta ✓');
+  } catch (e) { toast('No se pudieron pasar los gastos de la Hoja: ' + e.message); }
+}
+
+function escribirSimple(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function borrarLocal() {
+  ['mg_cache', 'mg_enviados', 'mg_cola', 'mg_config_ts', 'mg_migrado', 'mg_cfg', ...CLAVES_CONFIG].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  escribirSimple('mg_perfil', { tipo: 'nuevo' });
+}
+
+const ERRORES_AUTH = {
+  'auth/invalid-credential': 'Correo o contraseña incorrectos', 'auth/wrong-password': 'Correo o contraseña incorrectos',
+  'auth/user-not-found': 'No hay cuenta con ese correo. Toca "Crear cuenta".', 'auth/email-already-in-use': 'Ese correo ya tiene cuenta. Toca "Entrar".',
+  'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres', 'auth/invalid-email': 'Ese correo no es válido',
+  'auth/too-many-requests': 'Demasiados intentos. Espera un rato.', 'auth/network-request-failed': 'Sin conexión a internet',
+  'auth/popup-blocked': 'El celular bloqueó la ventana de Google. Entra con tu correo.', 'auth/popup-closed-by-user': 'Cerraste la ventana de Google',
+  'auth/operation-not-supported-in-this-environment': 'Aquí no funciona Google. Entra con tu correo.',
+};
+const msgAuth = e => ERRORES_AUTH[e.code] || ('No se pudo: ' + (e.code || e.message));
+
+function pintarCuenta() {
+  const c = $('cuenta'); if (!c) return;
+  c.hidden = !FIREBASE;
+  $('cuentaFuera').hidden = !!usuario; $('cuentaDentro').hidden = !usuario;
+  if (usuario) $('cuentaCorreo').textContent = usuario.email || 'tu cuenta de Google';
+  $('cardHoja').hidden = !!FIREBASE && !cfg.url;
+  estadoSync();
+}
+
 let sincronizando = false, otraVez = false;
 async function sincronizar() {
-  if (!cfg.url) { estadoSync(); return; }
+  if (!conectado()) { estadoSync(); return; }
   if (sincronizando) { otraVez = true; return; }
   sincronizando = true; otraVez = false;
   let fallo = false;
@@ -530,11 +685,12 @@ async function cargarPeriodo(p) {
 function estadoSync(texto) {
   const s = $('sync');
   if (texto) { s.textContent = texto; return; }
-  if (!cfg.url) s.textContent = 'Solo en el celular';
+  if (!conectado()) s.textContent = 'Solo en el celular';
   else if (cola.length) s.textContent = cola.length + ' por enviar';
   else if (ultimoError) s.textContent = 'Revisar ⚠';
+  else if (usuario) s.textContent = navigator.onLine ? 'En la nube ✓' : 'Sin conexión';
   else s.textContent = navigator.onLine ? 'Al día ✓' : 'Sin conexión';
-  $('avisoConfig').hidden = !!cfg.url;
+  $('avisoConfig').hidden = conectado() || (!!FIREBASE && !fbListo);
 }
 
 // ---------- Movimientos de una quincena ----------
@@ -551,7 +707,7 @@ async function agregar(item) {
   cola.push(item);
   escribir('mg_cola', cola);
   pintar();
-  if (cfg.url && navigator.onLine) await sincronizar();
+  if (conectado() && navigator.onLine) await sincronizar();
 }
 
 async function borrar(item) {
@@ -920,8 +1076,8 @@ function leerEditor(id) {
 function ir(v) {
   document.querySelectorAll('.vista').forEach(s => s.classList.toggle('activa', s.id === 'v-' + v));
   document.querySelectorAll('nav.abajo button').forEach(b => b.classList.toggle('on', b.dataset.ir === v));
-  if (v === 'ajustes') pintarAjustes();
-  if (v === 'quincena') { periodoVista = periodoActual(); pintar(); if (cfg.url) sincronizar(); }
+  if (v === 'ajustes') { pintarAjustes(); pintarCuenta(); }
+  if (v === 'quincena') { periodoVista = periodoActual(); pintar(); if (conectado()) sincronizar(); }
   window.scrollTo(0, 0);
 }
 
@@ -936,8 +1092,8 @@ document.querySelectorAll('[data-ir]').forEach(b => b.addEventListener('click', 
 $('tGasto').onclick = () => fijarTipo('Gasto');
 $('tIngreso').onclick = () => fijarTipo('Ingreso');
 $('guardar').onclick = guardar;
-$('pAnt').onclick = async () => { periodoVista = periodoVecino(periodoVista, -1); pintar(); if (cfg.url) { try { await cargarPeriodo(periodoVista); } catch (e) {} pintar(); } };
-$('pSig').onclick = async () => { periodoVista = periodoVecino(periodoVista, 1); pintar(); if (cfg.url) { try { await cargarPeriodo(periodoVista); } catch (e) {} pintar(); } };
+$('pAnt').onclick = async () => { periodoVista = periodoVecino(periodoVista, -1); pintar(); if (conectado()) { try { await cargarPeriodo(periodoVista); } catch (e) {} pintar(); } };
+$('pSig').onclick = async () => { periodoVista = periodoVecino(periodoVista, 1); pintar(); if (conectado()) { try { await cargarPeriodo(periodoVista); } catch (e) {} pintar(); } };
 $('probar').onclick = async () => {
   cfg = { url: $('cfgUrl').value.trim(), pin: $('cfgPin').value.trim() };
   escribir('mg_cfg', cfg);
@@ -1007,6 +1163,27 @@ $('agregarIng').onclick = () => pintarEditor('ingEditor', [...leerEditor('ingEdi
 $('guardarIng').onclick = () => { ingresos = leerEditor('ingEditor').filter(f => f.n); escribir('mg_ingresos', ingresos); pintarEditor('ingEditor', ingresos); pintar(); toast('Ingresos fijos guardados'); };
 $('monto').addEventListener('keydown', e => { if (e.key === 'Enter') $('nota').focus(); });
 $('nota').addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
+$('entrarGoogle').onclick = async () => {
+  try { await fb.au.signInWithPopup(fb.auth, new fb.au.GoogleAuthProvider()); } catch (e) { toast(msgAuth(e)); }
+};
+const credenciales = () => [$('authCorreo').value.trim(), $('authClave').value];
+$('entrarCorreo').onclick = async () => {
+  const [c, k] = credenciales(); if (!c || !k) { toast('Escribe tu correo y contraseña'); return; }
+  try { await fb.au.signInWithEmailAndPassword(fb.auth, c, k); toast('Bienvenido ✓'); } catch (e) { toast(msgAuth(e)); }
+};
+$('crearCuenta').onclick = async () => {
+  const [c, k] = credenciales(); if (!c || !k) { toast('Escribe tu correo y una contraseña'); return; }
+  try { await fb.au.createUserWithEmailAndPassword(fb.auth, c, k); toast('Cuenta creada ✓'); } catch (e) { toast(msgAuth(e)); }
+};
+$('olvide').onclick = async () => {
+  const c = $('authCorreo').value.trim(); if (!c) { toast('Escribe tu correo primero'); $('authCorreo').focus(); return; }
+  try { await fb.au.sendPasswordResetEmail(fb.auth, c); toast('Te mandamos un correo para cambiarla'); } catch (e) { toast(msgAuth(e)); }
+};
+$('salir').onclick = async () => {
+  if (cola.length && !confirmarSalida) { confirmarSalida = true; toast('Tienes ' + cola.length + ' sin enviar. Toca otra vez para salir igual.'); setTimeout(() => confirmarSalida = false, 3000); return; }
+  await fb.au.signOut(fb.auth); borrarLocal(); location.reload();
+};
+let confirmarSalida = false;
 $('sync').onclick = () => { if (ultimoError) toast(ultimoError); else sincronizar(); };
 window.addEventListener('online', sincronizar);
 window.addEventListener('offline', () => estadoSync());
@@ -1015,8 +1192,12 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { $(
 METODOS.forEach(m => { const o = document.createElement('option'); o.textContent = m; $('metodo').appendChild(o); });
 $('fecha').value = iso(new Date());
 fijarTipo('Gasto');
+if (FIREBASE) { $('avisoTexto').textContent = 'Crea tu cuenta (o entra con Google) para guardar tus gastos en la nube. Toma un minuto.'; $('avisoHoja').hidden = true; $('avisoNube').hidden = false; }
+arrancado = true;
+pintarCuenta();
 pintar();
 sincronizar();
+iniciarFirebase();
 </script>
 </body>
 </html>
