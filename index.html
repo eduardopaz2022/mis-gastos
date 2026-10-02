@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="google" content="notranslate">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mis Gastos">
 <link rel="manifest" href="manifest.json">
@@ -16,31 +16,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --primary: #2563eb;
-    --primary-soft: #dbeafe;
-    --bg: #f8fafc;
+    color-scheme: light;
+    --primary: #0f7f6c;
+    --primary-soft: #e2f3ef;
+    --bg: #f4f7f6;
     --card: #ffffff;
-    --text: #0f172a;
-    --muted: #64748b;
-    --line: #e2e8f0;
-    --ok: #10b981;
-    --ok-soft: #d1fae5;
-    --warn: #f59e0b;
-    --bad: #ef4444;
-    --bad-soft: #fee2e2;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --primary: #60a5fa;
-      --primary-soft: #1e3a5f;
-      --bg: #0b1220;
-      --card: #111a2e;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --line: #1f2a44;
-      --ok-soft: #064e3b;
-      --bad-soft: #4c1d1d;
-    }
+    --text: #1d2b29;
+    --muted: #6b7c78;
+    --line: #e1e8e6;
+    --ok: #0f7f6c;
+    --ok-soft: #e2f3ef;
+    --warn: #d98a00;
+    --bad: #d64545;
+    --bad-soft: #fbe9e9;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -53,13 +41,21 @@
   h1, h2 { font-family: 'Poppins', sans-serif; }
   header {
     position: sticky; top: 0; z-index: 5;
-    background: var(--primary); color: #fff;
+    background: var(--card); color: var(--text); border-bottom: 1px solid var(--line);
     padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
     display: flex; align-items: center; justify-content: space-between;
   }
   header h1 { font-size: 1.2rem; }
-  header .periodo { font-size: .8rem; opacity: .9; }
-  .sync { font-size: .75rem; background: rgba(255,255,255,.2); padding: 4px 10px; border-radius: 99px; }
+  header h1 span { color: var(--primary); }
+  header .periodo { font-size: .8rem; color: var(--muted); }
+  .sync { font-size: .75rem; background: var(--primary-soft); color: var(--primary); font-weight: 600; padding: 4px 10px; border-radius: 99px; }
+  .resumen { display: flex; align-items: center; justify-content: space-between; background: var(--primary-soft); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+  .resumen small { display: block; color: var(--muted); font-size: .78rem; }
+  .resumen b { font: 700 1.35rem 'Poppins', sans-serif; }
+  .resumen button { border: 0; background: transparent; color: var(--primary); font: 600 .82rem 'Inter', sans-serif; }
+  .paso { font-size: .82rem; font-weight: 700; color: var(--text); margin: 4px 0 8px; }
+  .paso i { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .72rem; margin-right: 6px; }
+  .pista { font-size: .8rem; color: var(--muted); margin: -4px 0 12px; }
   main { max-width: 560px; margin: 0 auto; padding: 16px; }
   .vista { display: none; }
   .vista.activa { display: block; }
@@ -123,16 +119,22 @@
   .pend { font-size: .7rem; background: var(--primary-soft); color: var(--primary); padding: 1px 6px; border-radius: 99px; margin-left: 4px; }
   .vacio { color: var(--muted); text-align: center; padding: 14px 0; font-size: .9rem; }
 
-  .fijo { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .fijo { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .check { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: #fff; font: 700 1rem 'Inter', sans-serif; }
+  .fijo.hecho .check { background: var(--primary); border-color: var(--primary); }
+  .check.armado { background: var(--bad) !important; border-color: var(--bad) !important; }
+  .fijo.omitido { opacity: .55; }
+  .fijo .m { font-weight: 700; white-space: nowrap; }
   .fijo:last-child { border-bottom: 0; }
   .fijo .info { flex: 1; }
   .fijo .info div { font-weight: 600; }
-  .fijo .info small { color: var(--muted); }
-  .fijo.hecho .info div { text-decoration: line-through; color: var(--muted); }
+  .fijo .info small { color: var(--muted); font-size: .78rem; }
+  .fijo.hecho .info div { color: var(--muted); }
   .monto-fijo { width: 84px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: 600 .95rem 'Inter', sans-serif; text-align: right; }
-  .enlace { border: 0; background: transparent; color: var(--muted); font: 500 .8rem 'Inter', sans-serif; text-decoration: underline; padding: 4px; }
+  .enlace { border: 0; background: transparent; color: var(--muted); font: 500 .78rem 'Inter', sans-serif; text-decoration: underline; padding: 0; }
   .ok-tag { background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 99px; }
 
+  .ayuda { font-size: .82rem; color: var(--muted); margin: -2px 0 12px; line-height: 1.4; }
   .editor-fila { display: grid; grid-template-columns: 1fr 78px 74px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
   .editor-fila input, .editor-fila select { padding: 8px; font-size: .85rem; }
   .editor-fila button { border: 0; background: transparent; color: var(--bad); font-size: 1.1rem; }
@@ -160,7 +162,7 @@
 <body>
 <header>
   <div>
-    <h1>Mis Gastos</h1>
+    <h1>Mis <span>Gastos</span></h1>
     <div class="periodo" id="hdrPeriodo"></div>
   </div>
   <div class="sync" id="sync">…</div>
@@ -173,15 +175,19 @@
       Aún no conectaste tu Hoja de Google. Puedes registrar igual: todo queda guardado en el celular y se envía cuando la conectes.
       <div><button class="btn sec peq" data-ir="ajustes">Conectar ahora</button></div>
     </div>
+    <div class="resumen"><div><small>Libre de verdad esta quincena</small><b id="rLibre">$0.00</b></div><button data-ir="quincena">Ver detalle ›</button></div>
     <div class="card">
       <div class="segmento">
         <button id="tGasto" class="on">Gasto</button>
         <button id="tIngreso">Ingreso</button>
       </div>
+      <div class="paso"><i>1</i>¿Cuánto?</div>
       <div class="monto-wrap"><span>$</span><input id="monto" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
-      <div class="etiqueta">Categoría</div>
+      <div class="paso"><i>2</i><span id="pasoCat">¿En qué?</span></div>
+      <div class="pista" id="pistaIngreso" hidden>Tu sueldo de Lamatepec, Citalá y la tutoría se marcan en <b>Fijos</b>. Aquí anota solo ingresos extra.</div>
       <div class="chips" id="chips"></div>
-      <div class="campo"><input id="nota" placeholder="¿Qué fue? (opcional)" maxlength="80" autocomplete="off"></div>
+      <div class="paso"><i>3</i>Detalles (opcional)</div>
+      <div class="campo"><input id="nota" placeholder="¿Qué fue? Ej.: almuerzo con Abby" maxlength="80" autocomplete="off"></div>
       <div class="fila">
         <input id="fecha" type="date">
         <select id="metodo"></select>
@@ -189,7 +195,7 @@
       <button class="btn" id="guardar">Guardar</button>
     </div>
     <div class="card">
-      <div class="etiqueta">Últimos registros</div>
+      <div class="etiqueta">Lo último que anotaste</div>
       <div id="ultimos"></div>
     </div>
   </section>
@@ -210,7 +216,7 @@
       <div class="libre" id="sLibre"></div>
     </div>
     <div class="card">
-      <div class="etiqueta">Por categoría (gastado / presupuesto)</div>
+      <div class="etiqueta">Gastos variables (gastado / tope)</div>
       <div id="cats"></div>
     </div>
     <div class="card">
@@ -221,11 +227,16 @@
 
   <!-- FIJOS -->
   <section class="vista" id="v-fijos">
+    <p class="ayuda" id="fTitulo"></p>
     <div class="card">
-      <div class="etiqueta" id="fTitulo">Pagos fijos de esta quincena</div>
+      <div class="etiqueta">Ingresos de esta quincena</div>
+      <div id="ingFijos"></div>
+    </div>
+    <div class="card">
+      <div class="etiqueta">Pagos fijos de esta quincena</div>
       <div id="fijos"></div>
     </div>
-    <p class="libre">Al marcar "Pagado" se registra el gasto automáticamente. Si un pago no toca en esta quincena, márcalo "No toca" y deja de contarse como pendiente. Puedes cambiar la lista en Ajustes.</p>
+    <p class="ayuda">Toca el círculo cuando recibas o pagues algo. Si el monto fue distinto, cámbialo antes de tocarlo. Para desmarcar, toca el círculo dos veces.</p>
   </section>
 
   <!-- AJUSTES -->
@@ -237,12 +248,23 @@
       <button class="btn sec" id="probar">Guardar y probar conexión</button>
     </div>
     <div class="card">
-      <div class="etiqueta">Presupuesto por quincena</div>
+      <div class="etiqueta">Topes para gastos variables</div>
+      <p class="ayuda">Lo máximo que te permites gastar por quincena en lo que cambia cada vez. Los pagos fijos no van aquí: tienen su lista abajo.</p>
       <div id="presEditor"></div>
-      <button class="btn sec" id="guardarPres" style="margin-top:8px">Guardar presupuesto</button>
+      <button class="btn sec" id="guardarPres" style="margin-top:8px">Guardar topes</button>
     </div>
     <div class="card">
-      <div class="etiqueta">Pagos fijos (nombre · monto · quincena)</div>
+      <div class="etiqueta">Ingresos fijos</div>
+      <p class="ayuda">Lo que te cae cada quincena: nombre, monto y en qué quincena.</p>
+      <div id="ingEditor"></div>
+      <div class="fila" style="margin-top:8px;margin-bottom:0">
+        <button class="btn sec" id="agregarIng">+ Agregar</button>
+        <button class="btn sec" id="guardarIng">Guardar lista</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="etiqueta">Pagos fijos</div>
+      <p class="ayuda">Lo que pagas siempre igual: nombre, monto y en qué quincena.</p>
       <div id="fijosEditor"></div>
       <div class="fila" style="margin-top:8px;margin-bottom:0">
         <button class="btn sec" id="agregarFijo">+ Agregar</button>
@@ -263,17 +285,18 @@
 <script>
 // ---------- Datos base ----------
 const CATS_GASTO = [
-  ['Gasolina', '⛽'], ['Comida fuera', '🍔'], ['Súper', '🛒'],
-  ['Casa', '🏠'], ['Novia y salidas', '❤️'], ['Universidad', '🎓'],
-  ['Carro', '🚗'], ['Personal', '👤'], ['Familia', '👪'],
-  ['Suscripciones', '📱'], ['Deudas', '💳'], ['Ahorro', '💰'],
-  ['Otros', '❓'],
+  ['Gasolina', '⛽'], ['Comida fuera', '🍔'], ['Súper', '🛒'], ['Casa', '🏠'],
+  ['Novia y salidas', '❤️'], ['Carro', '🚗'], ['Personal', '👤'], ['Familia', '👪'],
+  ['Deudas', '💳'], ['Ahorro', '💰'], ['Otros', '❓'],
 ];
-const CATS_INGRESO = [
-  ['Colegio mañana', '🏫', 250.86], ['Citalá', '🏫', 135], ['Tutoría', '📚', 120],
-  ['Bono', '🎁'], ['Otros ingresos', '💵'],
-];
-const ICONOS = Object.fromEntries([...CATS_GASTO, ...CATS_INGRESO, ['Pagos fijos', '📌']].map(c => [c[0], c[1]]));
+// Los ingresos de cada quincena se marcan en Fijos; aquí solo los extra.
+const CATS_INGRESO = [['Bono', '🎁'], ['Clases extra', '📚'], ['Venta', '🏷️'], ['Otros ingresos', '💵']];
+const SIN_TOPE = ['Deudas', 'Ahorro'];
+const ICONOS = Object.fromEntries([...CATS_GASTO, ...CATS_INGRESO,
+  ['Pagos fijos', '📌'], ['Lamatepec', '🏫'], ['Citalá', '🏫'], ['Tutoría', '📚'], ['Universidad', '🎓'], ['Suscripciones', '📱']].map(c => [c[0], c[1]]));
+// Nombres viejos que ya están en la Hoja.
+const ALIAS = { 'Colegio mañana': 'Lamatepec' };
+const normalizar = it => (ALIAS[it.categoria] ? { ...it, categoria: ALIAS[it.categoria] } : it);
 const METODOS = ['Débito Cuscatlán', 'Efectivo', 'Promerica', 'Multimoney', 'Otro'];
 
 const PRES_INICIAL = {
@@ -281,6 +304,13 @@ const PRES_INICIAL = {
   'Personal': 15, 'Familia': 10, 'Otros': 10,
 };
 // q: '15' = la quincena que se paga el 15; '30' = la que se paga el 30.
+const INGRESOS_INICIAL = [
+  { n: 'Lamatepec', m: 250.86, q: '15' },
+  { n: 'Citalá', m: 135, q: '15' },
+  { n: 'Lamatepec', m: 250.86, q: '30' },
+  { n: 'Citalá', m: 135, q: '30' },
+  { n: 'Tutoría', m: 120, q: '30' },
+];
 const FIJOS_INICIAL = [
   { n: 'Cuchubal', m: 25, q: '15' },
   { n: 'Internet casa', m: 29.99, q: '15' },
@@ -315,8 +345,10 @@ if (fijos.some(f => /\(mitad\)/.test(f.n))) {
     f.n === 'Servicios casa (mitad)' ? { n: 'Servicios casa', m: 72.77, q: f.q } : f);
   escribir('mg_fijos', fijos);
 }
-let omitidos = leer('mg_omitidos', {}); // fijos que no tocan en una quincena: { clave: [nombres] }
-let cola = leer('mg_cola', []);          // registros que aún no llegan a la Hoja
+let ingresos = leer('mg_ingresos', INGRESOS_INICIAL);
+let omitidos = leer('mg_omitidos', {}); // lo que no toca en una quincena: { clave: ['Gasto:Luz', ...] }
+for (const k in omitidos) omitidos[k] = omitidos[k].map(n => n.includes(':') ? n : 'Gasto:' + n);
+let cola = leer('mg_cola', []).map(normalizar); // registros que aún no llegan a la Hoja
 let cache = leer('mg_cache', {});        // registros ya guardados, por quincena
 
 // ---------- Utilidades ----------
@@ -368,11 +400,12 @@ async function api(metodo, datos) {
   return j;
 }
 
-let sincronizando = false;
+let sincronizando = false, otraVez = false;
 async function sincronizar() {
   if (!cfg.url) { estadoSync(); return; }
-  if (sincronizando) return;
-  sincronizando = true;
+  if (sincronizando) { otraVez = true; return; }
+  sincronizando = true; otraVez = false;
+  let fallo = false;
   estadoSync('Enviando…');
   try {
     if (cola.length) {
@@ -385,17 +418,20 @@ async function sincronizar() {
     await cargarPeriodo(periodoVista);
     if (periodoVista.clave !== periodoActual().clave) await cargarPeriodo(periodoActual());
   } catch (e) {
+    fallo = true;
     if (e.message === 'pin') toast('El PIN no coincide con el de tu Hoja');
   } finally {
     sincronizando = false;
     estadoSync();
     pintar();
+    // Si anotaste algo mientras se enviaba lo anterior, se envía ahora.
+    if (otraVez && !fallo) sincronizar();
   }
 }
 
 async function cargarPeriodo(p) {
   const r = await api('GET', { action: 'list', desde: p.desde, hasta: p.hasta });
-  cache[p.clave] = r.items;
+  cache[p.clave] = r.items.map(normalizar);
   escribir('mg_cache', cache);
 }
 
@@ -448,7 +484,7 @@ let tipo = 'Gasto', categoria = null;
 function pintarChips() {
   const lista = tipo === 'Gasto' ? CATS_GASTO : CATS_INGRESO;
   const cont = $('chips'); cont.innerHTML = '';
-  lista.forEach(([nombre, ico, montoSugerido]) => {
+  lista.forEach(([nombre, ico]) => {
     const b = document.createElement('button');
     b.className = 'chip' + (categoria === nombre ? ' on' : '');
     const i = document.createElement('span'); i.className = 'ico'; i.textContent = ico;
@@ -456,7 +492,6 @@ function pintarChips() {
     b.append(i, t);
     b.onclick = () => {
       categoria = nombre;
-      if (montoSugerido && !$('monto').value) $('monto').value = montoSugerido.toFixed(2);
       pintarChips();
     };
     cont.appendChild(b);
@@ -467,6 +502,8 @@ function fijarTipo(t) {
   tipo = t; categoria = null;
   $('tGasto').classList.toggle('on', t === 'Gasto');
   $('tIngreso').classList.toggle('on', t === 'Ingreso');
+  $('pistaIngreso').hidden = t !== 'Ingreso';
+  $('pasoCat').textContent = t === 'Gasto' ? '¿En qué?' : '¿De dónde?';
   pintarChips();
 }
 
@@ -517,27 +554,23 @@ const periodoActual = () => periodoDe(new Date());
 function pintarQuincena() {
   const p = periodoVista;
   $('pTitulo').textContent = corta(p.ini) + ' – ' + corta(p.fin);
-  const movs = movimientos(p);
-  const ing = movs.filter(i => i.tipo === 'Ingreso').reduce((s, i) => s + i.monto, 0);
-  const gas = movs.filter(i => i.tipo === 'Gasto').reduce((s, i) => s + i.monto, 0);
+  const { movs, ing, gas, porRecibir, porPagar, libre } = resumen(p);
   $('sIng').textContent = dinero(ing);
   $('sGas').textContent = dinero(gas);
   const queda = ing - gas;
   $('sQueda').textContent = dinero(queda);
   $('sQueda').className = queda < 0 ? 'rojo' : 'verde';
 
-  const pendientesFijos = fijosDe(p).filter(f => !f.pagado && !f.omitido).reduce((s, f) => s + f.m, 0);
   $('sLibre').innerHTML = '';
-  if (pendientesFijos > 0) {
-    $('sLibre').append('Te faltan ', Object.assign(document.createElement('b'), { textContent: dinero(pendientesFijos) }),
-      ' en pagos fijos. Libre de verdad: ', Object.assign(document.createElement('b'), { textContent: dinero(queda - pendientesFijos) }));
-  } else {
-    $('sLibre').textContent = 'Todos los pagos fijos de esta quincena están hechos.';
-  }
+  const linea = (txt, monto) => { $('sLibre').append(txt, Object.assign(document.createElement('b'), { textContent: dinero(monto) })); };
+  if (porRecibir > 0) { linea('Por recibir: ', porRecibir); $('sLibre').append(' · '); }
+  linea('Por pagar en fijos: ', porPagar);
+  $('sLibre').append(document.createElement('br'));
+  linea('Libre de verdad: ', libre);
 
   const porCat = {};
-  movs.filter(i => i.tipo === 'Gasto').forEach(i => { porCat[i.categoria] = (porCat[i.categoria] || 0) + i.monto; });
-  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0), ...Object.keys(porCat)])]
+  movs.filter(i => i.tipo === 'Gasto' && i.categoria !== 'Pagos fijos').forEach(i => { porCat[i.categoria] = (porCat[i.categoria] || 0) + i.monto; });
+  const nombres = [...new Set([...Object.keys(pres).filter(k => pres[k] > 0 && !SIN_TOPE.includes(k) && CATS_GASTO.some(c => c[0] === k)), ...Object.keys(porCat)])]
     .sort((a, b) => (porCat[b] || 0) - (porCat[a] || 0));
   const c = $('cats'); c.innerHTML = '';
   if (!nombres.length) c.innerHTML = '<div class="vacio">Sin gastos todavía.</div>';
@@ -566,56 +599,89 @@ function pintarQuincena() {
 }
 
 // ---------- Vista: Fijos ----------
-function fijosDe(p) {
-  const pagados = new Set(movimientos(p).filter(i => i.fijo).map(i => i.fijo));
+// Cada ingreso o pago fijo de la quincena, con el movimiento que lo cumplió (si ya está).
+function listaDe(p, lista, tipoMov) {
+  const movs = movimientos(p).filter(i => i.tipo === tipoMov);
   const fuera = new Set(omitidos[p.clave] || []);
-  return fijos.filter(f => f.q === p.q).map(f => ({ ...f, pagado: pagados.has(f.n), omitido: !pagados.has(f.n) && fuera.has(f.n) }));
+  const usados = new Set();
+  return lista.filter(f => f.q === p.q).map(f => {
+    const mov = movs.find(i => !usados.has(i.id) && (i.fijo === f.n || (tipoMov === 'Ingreso' && !i.fijo && i.categoria === f.n)));
+    if (mov) usados.add(mov.id);
+    return { ...f, tipoMov, mov, omitido: !mov && fuera.has(tipoMov + ':' + f.n) };
+  });
+}
+function fijosDe(p) { return listaDe(p, fijos, 'Gasto'); }
+
+function resumen(p) {
+  const movs = movimientos(p);
+  const ing = movs.filter(i => i.tipo === 'Ingreso').reduce((s, i) => s + i.monto, 0);
+  const gas = movs.filter(i => i.tipo === 'Gasto').reduce((s, i) => s + i.monto, 0);
+  const pendiente = l => l.filter(f => !f.mov && !f.omitido).reduce((s, f) => s + f.m, 0);
+  const porRecibir = pendiente(listaDe(p, ingresos, 'Ingreso'));
+  const porPagar = pendiente(fijosDe(p));
+  return { movs, ing, gas, queda: ing - gas, porRecibir, porPagar, libre: ing - gas + porRecibir - porPagar };
 }
 
+let repintarFijos = false;
 function pintarFijos() {
+  // No borrar lo que estás escribiendo en un monto.
+  if ($('v-fijos').contains(document.activeElement) && document.activeElement.tagName === 'INPUT') { repintarFijos = true; return; }
   const p = periodoActual();
-  $('fTitulo').textContent = 'Pagos fijos · quincena del ' + p.q + ' (' + corta(p.ini) + ' – ' + corta(p.fin) + ')';
-  const c = $('fijos'); c.innerHTML = '';
-  const lista = fijosDe(p);
-  if (!lista.length) { c.innerHTML = '<div class="vacio">No hay pagos fijos para esta quincena.</div>'; return; }
+  $('fTitulo').textContent = 'Marca lo que ya te cayó y lo que ya pagaste en esta quincena.';
+  pintarLista($('ingFijos'), listaDe(p, ingresos, 'Ingreso'), p);
+  pintarLista($('fijos'), fijosDe(p), p);
+}
+
+function pintarLista(c, lista, p) {
+  c.innerHTML = '';
+  if (!lista.length) { c.innerHTML = '<div class="vacio">Nada en esta quincena. Puedes agregar en Ajustes.</div>'; return; }
   lista.forEach(f => {
-    const d = document.createElement('div'); d.className = 'fijo' + (f.pagado || f.omitido ? ' hecho' : '');
+    const esIng = f.tipoMov === 'Ingreso';
+    const llave = f.tipoMov + ':' + f.n;
+    const d = document.createElement('div'); d.className = 'fijo' + (f.mov ? ' hecho' : '') + (f.omitido ? ' omitido' : '');
+    const ck = document.createElement('button'); ck.className = 'check';
+    ck.textContent = f.mov ? '✓' : '';
+    ck.setAttribute('aria-label', f.mov ? 'Desmarcar ' + f.n : (esIng ? 'Recibí ' : 'Pagué ') + f.n);
     const info = document.createElement('div'); info.className = 'info';
     const t = document.createElement('div'); t.textContent = f.n;
-    const s = document.createElement('small'); s.textContent = dinero(f.m);
+    const s = document.createElement('small');
     info.append(t, s);
-    d.appendChild(info);
-    if (f.pagado) {
-      const ok = document.createElement('span'); ok.className = 'ok-tag'; ok.textContent = 'Pagado ✓';
-      d.appendChild(ok);
-    } else if (f.omitido) {
-      const u = document.createElement('button'); u.className = 'enlace'; u.textContent = 'No toca · deshacer';
-      u.onclick = () => { omitidos[p.clave] = (omitidos[p.clave] || []).filter(n => n !== f.n); escribir('mg_omitidos', omitidos); pintar(); };
-      d.appendChild(u);
-    } else {
-      const nt = document.createElement('button'); nt.className = 'enlace'; nt.textContent = 'No toca';
-      nt.onclick = () => { omitidos[p.clave] = [...(omitidos[p.clave] || []), f.n]; escribir('mg_omitidos', omitidos); pintar(); };
-      d.appendChild(nt);
-      const b = document.createElement('button'); b.className = 'btn sec peq'; b.textContent = 'Pagado';
-      b.onclick = () => {
-        // Se confirma el monto en la misma fila: algunos navegadores bloquean las ventanas emergentes.
-        const inp = document.createElement('input'); inp.className = 'monto-fijo'; inp.inputMode = 'decimal';
-        inp.value = f.m.toFixed(2); inp.setAttribute('aria-label', 'Monto pagado de ' + f.n);
-        const ok = document.createElement('button'); ok.className = 'btn peq'; ok.textContent = '✓'; ok.setAttribute('aria-label', 'Confirmar');
-        const no = document.createElement('button'); no.className = 'x'; no.textContent = '✕'; no.setAttribute('aria-label', 'Cancelar');
-        no.onclick = pintarFijos;
-        ok.onclick = async () => {
-          const monto = parseFloat(String(inp.value).replace(',', '.'));
-          if (!(monto > 0)) { toast('Escribe el monto'); inp.focus(); return; }
-          await agregar({ id: nuevoId(), fecha: iso(new Date()), tipo: 'Gasto', categoria: 'Pagos fijos',
-            monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
-          toast(f.n + ' marcado como pagado');
-        };
-        nt.remove(); b.replaceWith(inp, ok, no);
-        inp.focus(); inp.select();
+    let derecha;
+    if (f.mov) {
+      s.textContent = (esIng ? 'Recibido el ' : 'Pagado el ') + corta(desdeIso(f.mov.fecha)) + (f.mov.pendiente ? ' · por enviar' : '');
+      derecha = document.createElement('div'); derecha.className = 'm' + (esIng ? ' verde' : '');
+      derecha.textContent = dinero(f.mov.monto);
+      ck.onclick = () => {
+        if (ck.dataset.armado) { borrar(f.mov); return; }
+        ck.dataset.armado = '1'; ck.classList.add('armado'); ck.textContent = '✕';
+        toast('Toca otra vez para desmarcar ' + f.n);
+        setTimeout(() => { delete ck.dataset.armado; ck.classList.remove('armado'); ck.textContent = '✓'; }, 3000);
       };
-      d.appendChild(b);
+    } else if (f.omitido) {
+      s.textContent = 'No toca esta quincena · ';
+      const u = document.createElement('button'); u.className = 'enlace'; u.textContent = 'deshacer';
+      u.onclick = () => { omitidos[p.clave] = (omitidos[p.clave] || []).filter(n => n !== llave); escribir('mg_omitidos', omitidos); pintar(); };
+      s.appendChild(u);
+      derecha = document.createElement('div'); derecha.className = 'm'; derecha.textContent = dinero(f.m);
+      ck.disabled = true;
+    } else {
+      const nt = document.createElement('button'); nt.className = 'enlace'; nt.textContent = 'No toca esta quincena';
+      nt.onclick = () => { omitidos[p.clave] = [...(omitidos[p.clave] || []), llave]; escribir('mg_omitidos', omitidos); pintar(); };
+      s.appendChild(nt);
+      derecha = document.createElement('input'); derecha.className = 'monto-fijo'; derecha.inputMode = 'decimal';
+      derecha.value = f.m.toFixed(2); derecha.setAttribute('aria-label', 'Monto de ' + f.n);
+      derecha.addEventListener('blur', () => setTimeout(() => { if (repintarFijos) { repintarFijos = false; pintarFijos(); } }, 300));
+      const inp = derecha;
+      ck.onclick = async () => {
+        const monto = parseFloat(String(inp.value).replace(',', '.'));
+        if (!(monto > 0)) { toast('Escribe el monto'); inp.focus(); return; }
+        inp.blur(); repintarFijos = false;
+        await agregar({ id: nuevoId(), fecha: iso(new Date()), tipo: f.tipoMov, categoria: esIng ? f.n : 'Pagos fijos',
+          monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
+        toast(f.n + (esIng ? ' recibido ✓' : ' pagado ✓'));
+      };
     }
+    d.append(ck, info, derecha);
     c.appendChild(d);
   });
 }
@@ -624,34 +690,35 @@ function pintarFijos() {
 function pintarAjustes() {
   $('cfgUrl').value = cfg.url; $('cfgPin').value = cfg.pin;
   const pe = $('presEditor'); pe.innerHTML = '';
-  CATS_GASTO.forEach(([n, ico]) => {
+  CATS_GASTO.filter(([n]) => !SIN_TOPE.includes(n)).forEach(([n, ico]) => {
     const f = document.createElement('div'); f.className = 'pres-fila';
     const l = document.createElement('span'); l.textContent = ico + ' ' + n;
     const i = document.createElement('input'); i.inputMode = 'decimal'; i.dataset.cat = n; i.value = pres[n] || ''; i.placeholder = '0';
     f.append(l, i); pe.appendChild(f);
   });
-  pintarEditorFijos();
+  pintarEditor('ingEditor', ingresos);
+  pintarEditor('fijosEditor', fijos);
 }
 
-function pintarEditorFijos() {
-  const fe = $('fijosEditor'); fe.innerHTML = '';
-  fijos.forEach((f, idx) => {
+function pintarEditor(id, lista) {
+  const fe = $(id); fe.innerHTML = '';
+  lista.forEach((f, idx) => {
     const r = document.createElement('div'); r.className = 'editor-fila';
-    const n = document.createElement('input'); n.value = f.n; n.dataset.k = 'n';
-    const m = document.createElement('input'); m.value = f.m; m.inputMode = 'decimal'; m.dataset.k = 'm';
+    const n = document.createElement('input'); n.value = f.n; n.dataset.k = 'n'; n.placeholder = 'Nombre';
+    const m = document.createElement('input'); m.value = f.m || ''; m.inputMode = 'decimal'; m.dataset.k = 'm'; m.placeholder = '0.00';
     const q = document.createElement('select'); q.dataset.k = 'q';
     ['15', '30'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = 'del ' + v; if (f.q === v) o.selected = true; q.appendChild(o); });
     const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Quitar');
-    x.onclick = () => { leerEditorFijos(); fijos.splice(idx, 1); pintarEditorFijos(); };
+    x.onclick = () => { const l = leerEditor(id); l.splice(idx, 1); pintarEditor(id, l); };
     r.append(n, m, q, x); fe.appendChild(r);
   });
 }
 
-function leerEditorFijos() {
-  fijos = [...$('fijosEditor').children].map(r => {
+function leerEditor(id) {
+  return [...$(id).children].map(r => {
     const g = k => r.querySelector('[data-k="' + k + '"]').value;
-    return { n: g('n').trim(), m: parseFloat(g('m')) || 0, q: g('q') };
-  }).filter(f => f.n);
+    return { n: g('n').trim(), m: parseFloat(String(g('m')).replace(',', '.')) || 0, q: g('q') };
+  });
 }
 
 // ---------- Navegación y arranque ----------
@@ -666,6 +733,7 @@ function ir(v) {
 function pintar() {
   const p = periodoActual();
   $('hdrPeriodo').textContent = 'Quincena del ' + p.q + ' · ' + corta(p.ini) + ' – ' + corta(p.fin);
+  $('rLibre').textContent = dinero(resumen(p).libre);
   pintarUltimos(); pintarQuincena(); pintarFijos(); estadoSync();
 }
 
@@ -686,10 +754,12 @@ $('probar').onclick = async () => {
 $('guardarPres').onclick = () => {
   const nuevo = {};
   $('presEditor').querySelectorAll('input').forEach(i => { const v = parseFloat(i.value); if (v > 0) nuevo[i.dataset.cat] = v; });
-  pres = nuevo; escribir('mg_pres', pres); pintar(); toast('Presupuesto guardado');
+  pres = nuevo; escribir('mg_pres', pres); pintar(); toast('Topes guardados');
 };
-$('agregarFijo').onclick = () => { leerEditorFijos(); fijos.push({ n: '', m: 0, q: periodoActual().q }); pintarEditorFijos(); };
-$('guardarFijos').onclick = () => { leerEditorFijos(); escribir('mg_fijos', fijos); pintarEditorFijos(); pintar(); toast('Lista de fijos guardada'); };
+$('agregarFijo').onclick = () => pintarEditor('fijosEditor', [...leerEditor('fijosEditor'), { n: '', m: 0, q: periodoActual().q }]);
+$('guardarFijos').onclick = () => { fijos = leerEditor('fijosEditor').filter(f => f.n); escribir('mg_fijos', fijos); pintarEditor('fijosEditor', fijos); pintar(); toast('Pagos fijos guardados'); };
+$('agregarIng').onclick = () => pintarEditor('ingEditor', [...leerEditor('ingEditor'), { n: '', m: 0, q: periodoActual().q }]);
+$('guardarIng').onclick = () => { ingresos = leerEditor('ingEditor').filter(f => f.n); escribir('mg_ingresos', ingresos); pintarEditor('ingEditor', ingresos); pintar(); toast('Ingresos fijos guardados'); };
 $('monto').addEventListener('keydown', e => { if (e.key === 'Enter') $('nota').focus(); });
 $('nota').addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
 window.addEventListener('online', sincronizar);

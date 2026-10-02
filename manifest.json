@@ -3,7 +3,7 @@
   "short_name": "Mis Gastos",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#2563eb",
+  "background_color": "#f4f7f6",
+  "theme_color": "#ffffff",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }
