@@ -33,3 +33,9 @@ La pestaña **Registro** se crea sola con el primer gasto.
 - **Ajustes:** ahí cambias el presupuesto por categoría y la lista de pagos fijos. Se guardan en el celular.
 
 Tu PIN no va en el código de GitHub; solo vive en tu Hoja y en tu celular.
+
+## Si cambia el Code.gs
+
+Pega el código nuevo y vuelve a poner tu PIN. Después ve a **Implementar > Gestionar implementaciones > ✏️ > Versión: Nueva versión > Implementar**. Si no creas una versión nueva, Google sigue usando el código viejo. La URL no cambia.
+
+En la app, **Ajustes > Revisar mi Hoja** muestra cuántas filas lee, la versión del script y cómo quedaron guardadas las fechas.
