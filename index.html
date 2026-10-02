@@ -130,6 +130,7 @@
   .fijo .info small { color: var(--muted); }
   .fijo.hecho .info div { text-decoration: line-through; color: var(--muted); }
   .monto-fijo { width: 84px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: 600 .95rem 'Inter', sans-serif; text-align: right; }
+  .enlace { border: 0; background: transparent; color: var(--muted); font: 500 .8rem 'Inter', sans-serif; text-decoration: underline; padding: 4px; }
   .ok-tag { background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 99px; }
 
   .editor-fila { display: grid; grid-template-columns: 1fr 78px 74px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
@@ -224,7 +225,7 @@
       <div class="etiqueta" id="fTitulo">Pagos fijos de esta quincena</div>
       <div id="fijos"></div>
     </div>
-    <p class="libre">Al marcar "Pagado" se registra el gasto automáticamente. Puedes cambiar la lista en Ajustes.</p>
+    <p class="libre">Al marcar "Pagado" se registra el gasto automáticamente. Si un pago no toca en esta quincena, márcalo "No toca" y deja de contarse como pendiente. Puedes cambiar la lista en Ajustes.</p>
   </section>
 
   <!-- AJUSTES -->
@@ -276,7 +277,7 @@ const ICONOS = Object.fromEntries([...CATS_GASTO, ...CATS_INGRESO, ['Pagos fijos
 const METODOS = ['Débito Cuscatlán', 'Efectivo', 'Promerica', 'Multimoney', 'Otro'];
 
 const PRES_INICIAL = {
-  'Gasolina': 60, 'Comida fuera': 30, 'Súper': 40, 'Casa': 15, 'Novia y salidas': 25,
+  'Gasolina': 105, 'Comida fuera': 30, 'Súper': 40, 'Casa': 15, 'Novia y salidas': 25,
   'Personal': 15, 'Familia': 10, 'Otros': 10,
 };
 // q: '15' = la quincena que se paga el 15; '30' = la que se paga el 30.
@@ -305,6 +306,7 @@ function escribir(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 let cfg = leer('mg_cfg', { url: '', pin: '' });
 let pres = leer('mg_pres', PRES_INICIAL);
+if (pres['Gasolina'] === 60) { pres['Gasolina'] = 105; escribir('mg_pres', pres); }  // tope real que usa Eduardo
 let fijos = leer('mg_fijos', FIJOS_INICIAL);
 // Antes la universidad y la casa iban por mitades en cada quincena; ahora van completas el 30.
 if (fijos.some(f => /\(mitad\)/.test(f.n))) {
@@ -313,6 +315,7 @@ if (fijos.some(f => /\(mitad\)/.test(f.n))) {
     f.n === 'Servicios casa (mitad)' ? { n: 'Servicios casa', m: 72.77, q: f.q } : f);
   escribir('mg_fijos', fijos);
 }
+let omitidos = leer('mg_omitidos', {}); // fijos que no tocan en una quincena: { clave: [nombres] }
 let cola = leer('mg_cola', []);          // registros que aún no llegan a la Hoja
 let cache = leer('mg_cache', {});        // registros ya guardados, por quincena
 
@@ -523,7 +526,7 @@ function pintarQuincena() {
   $('sQueda').textContent = dinero(queda);
   $('sQueda').className = queda < 0 ? 'rojo' : 'verde';
 
-  const pendientesFijos = fijosDe(p).filter(f => !f.pagado).reduce((s, f) => s + f.m, 0);
+  const pendientesFijos = fijosDe(p).filter(f => !f.pagado && !f.omitido).reduce((s, f) => s + f.m, 0);
   $('sLibre').innerHTML = '';
   if (pendientesFijos > 0) {
     $('sLibre').append('Te faltan ', Object.assign(document.createElement('b'), { textContent: dinero(pendientesFijos) }),
@@ -565,7 +568,8 @@ function pintarQuincena() {
 // ---------- Vista: Fijos ----------
 function fijosDe(p) {
   const pagados = new Set(movimientos(p).filter(i => i.fijo).map(i => i.fijo));
-  return fijos.filter(f => f.q === p.q).map(f => ({ ...f, pagado: pagados.has(f.n) }));
+  const fuera = new Set(omitidos[p.clave] || []);
+  return fijos.filter(f => f.q === p.q).map(f => ({ ...f, pagado: pagados.has(f.n), omitido: !pagados.has(f.n) && fuera.has(f.n) }));
 }
 
 function pintarFijos() {
@@ -575,7 +579,7 @@ function pintarFijos() {
   const lista = fijosDe(p);
   if (!lista.length) { c.innerHTML = '<div class="vacio">No hay pagos fijos para esta quincena.</div>'; return; }
   lista.forEach(f => {
-    const d = document.createElement('div'); d.className = 'fijo' + (f.pagado ? ' hecho' : '');
+    const d = document.createElement('div'); d.className = 'fijo' + (f.pagado || f.omitido ? ' hecho' : '');
     const info = document.createElement('div'); info.className = 'info';
     const t = document.createElement('div'); t.textContent = f.n;
     const s = document.createElement('small'); s.textContent = dinero(f.m);
@@ -584,7 +588,14 @@ function pintarFijos() {
     if (f.pagado) {
       const ok = document.createElement('span'); ok.className = 'ok-tag'; ok.textContent = 'Pagado ✓';
       d.appendChild(ok);
+    } else if (f.omitido) {
+      const u = document.createElement('button'); u.className = 'enlace'; u.textContent = 'No toca · deshacer';
+      u.onclick = () => { omitidos[p.clave] = (omitidos[p.clave] || []).filter(n => n !== f.n); escribir('mg_omitidos', omitidos); pintar(); };
+      d.appendChild(u);
     } else {
+      const nt = document.createElement('button'); nt.className = 'enlace'; nt.textContent = 'No toca';
+      nt.onclick = () => { omitidos[p.clave] = [...(omitidos[p.clave] || []), f.n]; escribir('mg_omitidos', omitidos); pintar(); };
+      d.appendChild(nt);
       const b = document.createElement('button'); b.className = 'btn sec peq'; b.textContent = 'Pagado';
       b.onclick = () => {
         // Se confirma el monto en la misma fila: algunos navegadores bloquean las ventanas emergentes.
@@ -600,7 +611,7 @@ function pintarFijos() {
             monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
           toast(f.n + ' marcado como pagado');
         };
-        b.replaceWith(inp, ok, no);
+        nt.remove(); b.replaceWith(inp, ok, no);
         inp.focus(); inp.select();
       };
       d.appendChild(b);
