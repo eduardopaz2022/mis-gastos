@@ -129,6 +129,7 @@
   .cat-fila input { padding: 8px; font-size: .9rem; }
   .cat-fila input[data-k=ico] { text-align: center; font-size: 1.1rem; padding: 6px 2px; }
   .cat-fila input:disabled { background: var(--bg); }
+  .cat-fila.ing { grid-template-columns: 48px 1fr 26px; }
   .cat-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; }
   .pres-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; margin-left: 6px; }
   .cat-top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: 4px; }
@@ -315,8 +316,17 @@
       <button class="btn sec" id="agregarCat" style="margin-top:8px">+ Agregar categoría</button>
     </div>
     <div class="card">
+      <div class="etiqueta">Categorías de ingreso</div>
+      <p class="ayuda">Las opciones que salen al anotar un ingreso. Cambia el emoji o el nombre, quita las que no uses o agrega otras.</p>
+      <div id="ingCatEditor"></div>
+      <div class="fila" style="margin-top:8px;margin-bottom:0">
+        <button class="btn sec" id="agregarIngCat">+ Agregar</button>
+        <button class="btn sec" id="guardarIngCat">Guardar</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="etiqueta">Ingresos fijos</div>
-      <p class="ayuda">Lo que te cae cada quincena: nombre, monto y en qué quincena.</p>
+      <p class="ayuda">Tu salario y lo que te cae siempre. Si te pagan cada quincena, elige <b>ambas</b> y pon lo que recibes en una quincena. Si te pagan una vez al mes, elige si cae <b>el 15</b> o <b>el 30</b> y pon el monto del mes.</p>
       <div id="ingEditor"></div>
       <div class="fila" style="margin-top:8px;margin-bottom:0">
         <button class="btn sec" id="agregarIng">+ Agregar</button>
@@ -325,7 +335,7 @@
     </div>
     <div class="card">
       <div class="etiqueta">Pagos fijos</div>
-      <p class="ayuda">Lo que pagas siempre igual: nombre, monto y en qué quincena.</p>
+      <p class="ayuda">Lo que pagas siempre igual: nombre, monto y en qué quincena. Si lo pagas en las dos, elige <b>ambas</b>.</p>
       <div id="fijosEditor"></div>
       <div class="fila" style="margin-top:8px;margin-bottom:0">
         <button class="btn sec" id="agregarFijo">+ Agregar</button>
@@ -345,7 +355,7 @@
 
 <script>
 // Lo que se guarda en tu cuenta además de los movimientos.
-const CLAVES_CONFIG = ['mg_pres', 'mg_fijos', 'mg_ingresos', 'mg_catlist', 'mg_renombres', 'mg_omitidos'];
+const CLAVES_CONFIG = ['mg_pres', 'mg_fijos', 'mg_ingresos', 'mg_catlist', 'mg_catingreso', 'mg_renombres', 'mg_omitidos'];
 // Lo que la app guarda sola al arrancar no cuenta como cambio tuyo (no debe pisar lo de la nube).
 let arrancado = false;
 // ---------- Datos base ----------
@@ -380,8 +390,11 @@ const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
 let perfil = leer('mg_perfil', null);
 if (!perfil) { perfil = { tipo: leer('mg_cfg', null) ? 'eduardo' : 'nuevo' }; escribir('mg_perfil', perfil); }
 const NUEVO = perfil.tipo === 'nuevo';
-// Eduardo anota su sueldo con sus ingresos fijos y da clases extra; los demás necesitan "Salario" y no dan clases.
-const catsIngreso = () => CATS_INGRESO.filter(c => c[0] !== (NUEVO ? 'Clases extra' : 'Salario'));
+// Categorías de ingreso (editables). Eduardo anota su sueldo con sus ingresos fijos y da clases extra;
+// los demás arrancan con "Salario" y sin clases.
+let catIng = leer('mg_catingreso', null);
+if (!catIng) { catIng = CATS_INGRESO.filter(c => c[0] !== (NUEVO ? 'Clases extra' : 'Salario')).map(c => ({ n: c[0], ico: c[1] })); escribir('mg_catingreso', catIng); }
+const catsIngreso = () => catIng.map(c => [c.n, c.ico]);
 let catList = leer('mg_catlist', null);
 if (!catList) {
   const extra = leer('mg_cats', []);
@@ -392,7 +405,7 @@ if (!catList) {
 }
 let renombres = leer('mg_renombres', {}); // nombre viejo -> nombre nuevo, para lo que ya está en la Hoja
 const catsGasto = () => catList.map(c => [c.n, c.ico]);
-const icono = n => (catList.find(c => c.n === n) || {}).ico || ICONOS[n] || '•';
+const icono = n => (catList.find(c => c.n === n) || catIng.find(c => c.n === n) || {}).ico || ICONOS[n] || '•';
 const baseDe = n => (catList.find(c => c.n === n) || {}).base || n;
 const sinTope = n => SIN_TOPE.includes(baseDe(n));
 const ALIAS = { 'Colegio mañana': 'Lamatepec' };
@@ -407,7 +420,7 @@ const PRES_INICIAL = {
   'Gasolina': 105, 'Comida fuera': 30, 'Súper': 40, 'Casa': 15, 'Novia y salidas': 25,
   'Personal': 15, 'Familia': 10, 'Otros': 10,
 };
-// q: '15' = la quincena que se paga el 15; '30' = la que se paga el 30.
+// q: '15' = la quincena que se paga el 15; '30' = la que se paga el 30; 'ambas' = las dos quincenas.
 const INGRESOS_INICIAL = [
   { n: 'Lamatepec', m: 250.86, q: '15' },
   { n: 'Citalá', m: 135, q: '15' },
@@ -576,7 +589,7 @@ async function apiNube(d) {
   throw new Error('accion');
 }
 
-function configLocal() { return { pres, fijos, ingresos, catList, renombres, omitidos }; }
+function configLocal() { return { pres, fijos, ingresos, catList, catIng, renombres, omitidos }; }
 function programarSubida() {
   if (!usuario || aplicandoNube) return;
   clearTimeout(subidaPendiente);
@@ -603,8 +616,10 @@ async function alEntrar(u) {
     if (c.catList) { catList = c.catList; escribir('mg_catlist', catList); }
     if (c.renombres) { renombres = c.renombres; escribir('mg_renombres', renombres); }
     if (c.omitidos) { omitidos = c.omitidos; escribir('mg_omitidos', omitidos); }
+    if (c.catIng) { catIng = c.catIng; escribir('mg_catingreso', catIng); }
     escribirSimple('mg_config_ts', String(nube.actualizado || Date.now()));
     aplicandoNube = false;
+    if (!c.catIng) programarSubida(); // cuentas creadas antes de que existieran las categorías de ingreso
   } else {
     programarSubida();
   }
@@ -955,7 +970,7 @@ function listaDe(p, lista, tipoMov) {
   const movs = movimientos(p).filter(i => i.tipo === tipoMov);
   const fuera = new Set(omitidos[p.clave] || []);
   const usados = new Set();
-  return lista.filter(f => f.q === p.q).map(f => {
+  return lista.filter(f => f.q === p.q || f.q === 'ambas').map(f => {
     const mov = movs.find(i => !usados.has(i.id) && (i.fijo === f.n || (tipoMov === 'Ingreso' && !i.fijo && i.categoria === f.n)));
     if (mov) usados.add(mov.id);
     return { ...f, tipoMov, mov, omitido: !mov && fuera.has(tipoMov + ':' + f.n) };
@@ -1058,6 +1073,23 @@ function pintarAjustes() {
   });
   pintarEditor('ingEditor', ingresos);
   pintarEditor('fijosEditor', fijos);
+  pintarIngCats(catIng.map((c, i) => ({ ...c, i })));
+}
+
+// Filas: { n, ico, i } donde i es la posición en catIng (o null si es nueva), para saber qué se renombró.
+function pintarIngCats(filas) {
+  const ed = $('ingCatEditor'); ed.innerHTML = '';
+  filas.forEach((c, k) => {
+    const f = document.createElement('div'); f.className = 'cat-fila ing'; f.dataset.i = c.i === null ? '' : c.i;
+    const ico = Object.assign(document.createElement('input'), { value: c.ico, maxLength: 4, placeholder: '💵' }); ico.dataset.k = 'ico'; ico.setAttribute('aria-label', 'Emoji');
+    const nom = Object.assign(document.createElement('input'), { value: c.n, maxLength: 24, placeholder: 'Nombre. Ej.: Salario' }); nom.dataset.k = 'n'; nom.setAttribute('aria-label', 'Nombre');
+    const q = document.createElement('button'); q.className = 'quitar'; q.textContent = '✕'; q.setAttribute('aria-label', 'Quitar ' + c.n);
+    q.onclick = () => { const l = leerIngCats(); l.splice(k, 1); pintarIngCats(l); };
+    f.append(ico, nom, q); ed.appendChild(f);
+  });
+}
+function leerIngCats() {
+  return [...$('ingCatEditor').children].map(f => ({ ico: f.querySelector('[data-k=ico]').value.trim(), n: f.querySelector('[data-k=n]').value.trim(), i: f.dataset.i === '' ? null : +f.dataset.i }));
 }
 
 function pintarEditor(id, lista) {
@@ -1067,7 +1099,7 @@ function pintarEditor(id, lista) {
     const n = document.createElement('input'); n.value = f.n; n.dataset.k = 'n'; n.placeholder = 'Nombre';
     const m = document.createElement('input'); m.value = f.m || ''; m.inputMode = 'decimal'; m.dataset.k = 'm'; m.placeholder = '0.00';
     const q = document.createElement('select'); q.dataset.k = 'q';
-    ['15', '30'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = 'del ' + v; if (f.q === v) o.selected = true; q.appendChild(o); });
+    [['15', 'el 15'], ['30', 'el 30'], ['ambas', 'ambas']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; if (f.q === v) o.selected = true; q.appendChild(o); });
     const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Quitar');
     x.onclick = () => { const l = leerEditor(id); l.splice(idx, 1); pintarEditor(id, l); };
     r.append(n, m, q, x); fe.appendChild(r);
@@ -1168,6 +1200,31 @@ $('guardarPres').onclick = () => {
 };
 $('agregarFijo').onclick = () => pintarEditor('fijosEditor', [...leerEditor('fijosEditor'), { n: '', m: 0, q: periodoActual().q }]);
 $('guardarFijos').onclick = () => { fijos = leerEditor('fijosEditor').filter(f => f.n); escribir('mg_fijos', fijos); pintarEditor('fijosEditor', fijos); pintar(); toast('Pagos fijos guardados'); };
+$('agregarIngCat').onclick = () => { pintarIngCats([...leerIngCats(), { n: '', ico: '', i: null }]); const u = $('ingCatEditor').lastChild; if (u) u.querySelector('[data-k=n]').focus(); };
+$('guardarIngCat').onclick = () => {
+  const filas = leerIngCats().filter(f => f.n || f.i !== null);
+  if (filas.some(f => !f.n)) { toast('Ninguna categoría puede quedar sin nombre'); return; }
+  const nombres = filas.map(f => f.n);
+  if (new Set(nombres.map(n => n.toLowerCase())).size !== nombres.length) { toast('Hay dos categorías con el mismo nombre'); return; }
+  if (nombres.some(n => catList.some(c => c.n.toLowerCase() === n.toLowerCase()))) { toast('Ese nombre ya lo usa una categoría de gasto'); return; }
+  filas.forEach(f => {
+    const viejo = f.i !== null && catIng[f.i] ? catIng[f.i].n : null;
+    if (viejo && viejo !== f.n) {
+      // Lo que ya estaba anotado con el nombre viejo pasa al nuevo.
+      for (const v in renombres) if (renombres[v] === viejo) renombres[v] = f.n;
+      renombres[viejo] = f.n;
+      if (categoria === viejo) categoria = f.n;
+    }
+  });
+  for (const n of nombres) delete renombres[n];
+  catIng = filas.map(f => ({ n: f.n, ico: f.ico || '💵' }));
+  if (tipo === 'Ingreso' && !catIng.some(c => c.n === categoria)) categoria = null;
+  escribir('mg_catingreso', catIng); escribir('mg_renombres', renombres);
+  for (const k in cache) cache[k] = cache[k].map(normalizar);
+  cola = cola.map(normalizar); enviados = enviados.map(normalizar);
+  escribir('mg_cache', cache); escribir('mg_cola', cola); escribir('mg_enviados', enviados);
+  pintarAjustes(); pintar(); toast('Categorías de ingreso guardadas');
+};
 $('agregarIng').onclick = () => pintarEditor('ingEditor', [...leerEditor('ingEditor'), { n: '', m: 0, q: periodoActual().q }]);
 $('guardarIng').onclick = () => { ingresos = leerEditor('ingEditor').filter(f => f.n); escribir('mg_ingresos', ingresos); pintarEditor('ingEditor', ingresos); pintar(); toast('Ingresos fijos guardados'); };
 $('monto').addEventListener('keydown', e => { if (e.key === 'Enter') $('nota').focus(); });
