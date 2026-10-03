@@ -380,8 +380,8 @@ const ICONOS = Object.fromEntries([...CATS_BASE, ...CATS_INGRESO,
 let perfil = leer('mg_perfil', null);
 if (!perfil) { perfil = { tipo: leer('mg_cfg', null) ? 'eduardo' : 'nuevo' }; escribir('mg_perfil', perfil); }
 const NUEVO = perfil.tipo === 'nuevo';
-// Eduardo anota su sueldo con sus ingresos fijos; los demás necesitan "Salario" para anotarlo.
-const catsIngreso = () => NUEVO ? CATS_INGRESO : CATS_INGRESO.filter(c => c[0] !== 'Salario');
+// Eduardo anota su sueldo con sus ingresos fijos y da clases extra; los demás necesitan "Salario" y no dan clases.
+const catsIngreso = () => CATS_INGRESO.filter(c => c[0] !== (NUEVO ? 'Clases extra' : 'Salario'));
 let catList = leer('mg_catlist', null);
 if (!catList) {
   const extra = leer('mg_cats', []);
