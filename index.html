@@ -130,6 +130,7 @@
   .cat-fila input[data-k=ico] { text-align: center; font-size: 1.1rem; padding: 6px 2px; }
   .cat-fila input:disabled { background: var(--bg); }
   .cat-fila.ing { grid-template-columns: 48px 1fr 26px; }
+  .cat-fila.met { grid-template-columns: 1fr 26px; }
   .cat-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; }
   .pres-fila .quitar { border: 0; background: transparent; color: var(--bad); font-size: 1rem; margin-left: 6px; }
   .cat-top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: 4px; }
@@ -325,6 +326,15 @@
       </div>
     </div>
     <div class="card">
+      <div class="etiqueta">Con qué pagas</div>
+      <p class="ayuda">Tus tarjetas, cuentas y efectivo. La primera de la lista es la que sale de una vez al anotar.</p>
+      <div id="metEditor"></div>
+      <div class="fila" style="margin-top:8px;margin-bottom:0">
+        <button class="btn sec" id="agregarMet">+ Agregar</button>
+        <button class="btn sec" id="guardarMet">Guardar</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="etiqueta">Ingresos fijos</div>
       <p class="ayuda">Tu salario y lo que te cae siempre. Si te pagan cada quincena, elige <b>ambas</b> y pon lo que recibes en una quincena. Si te pagan una vez al mes, elige si cae <b>el 15</b> o <b>el 30</b> y pon el monto del mes.</p>
       <div id="ingEditor"></div>
@@ -355,7 +365,7 @@
 
 <script>
 // Lo que se guarda en tu cuenta además de los movimientos.
-const CLAVES_CONFIG = ['mg_pres', 'mg_fijos', 'mg_ingresos', 'mg_catlist', 'mg_catingreso', 'mg_renombres', 'mg_omitidos'];
+const CLAVES_CONFIG = ['mg_pres', 'mg_fijos', 'mg_ingresos', 'mg_catlist', 'mg_catingreso', 'mg_metodos', 'mg_renombres', 'mg_omitidos'];
 // Lo que la app guarda sola al arrancar no cuenta como cambio tuyo (no debe pisar lo de la nube).
 let arrancado = false;
 // ---------- Datos base ----------
@@ -415,6 +425,9 @@ function normalizar(it) {
   return c === it.categoria ? it : { ...it, categoria: c };
 }
 const METODOS = ['Débito Cuscatlán', 'Efectivo', 'Promerica', 'Multimoney', 'Otro'];
+// Con qué se paga (editable). El primero es el que sale de una vez y el que usan los pagos fijos.
+let metodos = leer('mg_metodos', null);
+if (!metodos) { metodos = NUEVO ? ['Efectivo', 'Tarjeta de débito', 'Tarjeta de crédito', 'Transferencia', 'Otro'] : METODOS; escribir('mg_metodos', metodos); }
 
 const PRES_INICIAL = {
   'Gasolina': 105, 'Comida fuera': 30, 'Súper': 40, 'Casa': 15, 'Novia y salidas': 25,
@@ -589,7 +602,7 @@ async function apiNube(d) {
   throw new Error('accion');
 }
 
-function configLocal() { return { pres, fijos, ingresos, catList, catIng, renombres, omitidos }; }
+function configLocal() { return { pres, fijos, ingresos, catList, catIng, metodos, renombres, omitidos }; }
 function programarSubida() {
   if (!usuario || aplicandoNube) return;
   clearTimeout(subidaPendiente);
@@ -617,9 +630,10 @@ async function alEntrar(u) {
     if (c.renombres) { renombres = c.renombres; escribir('mg_renombres', renombres); }
     if (c.omitidos) { omitidos = c.omitidos; escribir('mg_omitidos', omitidos); }
     if (c.catIng) { catIng = c.catIng; escribir('mg_catingreso', catIng); }
+    if (c.metodos && c.metodos.length) { metodos = c.metodos; escribir('mg_metodos', metodos); pintarMetodos(); }
     escribirSimple('mg_config_ts', String(nube.actualizado || Date.now()));
     aplicandoNube = false;
-    if (!c.catIng) programarSubida(); // cuentas creadas antes de que existieran las categorías de ingreso
+    if (!c.catIng || !c.metodos) programarSubida(); // cuentas creadas antes de que esto fuera editable
   } else {
     programarSubida();
   }
@@ -1043,7 +1057,7 @@ function pintarLista(c, lista, p) {
         if (!(monto > 0)) { toast('Escribe el monto'); inp.focus(); return; }
         inp.blur(); repintarFijos = false;
         await agregar({ id: nuevoId(), fecha: iso(new Date()), tipo: f.tipoMov, categoria: esIng ? f.n : 'Pagos fijos',
-          monto: Math.round(monto * 100) / 100, nota: f.n, metodo: 'Débito Cuscatlán', fijo: f.n });
+          monto: Math.round(monto * 100) / 100, nota: f.n, metodo: metodos[0] || '', fijo: f.n });
         toast(f.n + (esIng ? ' recibido ✓' : ' pagado ✓'));
       };
     }
@@ -1074,7 +1088,25 @@ function pintarAjustes() {
   pintarEditor('ingEditor', ingresos);
   pintarEditor('fijosEditor', fijos);
   pintarIngCats(catIng.map((c, i) => ({ ...c, i })));
+  pintarMetEditor(metodos);
 }
+
+function pintarMetodos() {
+  const sel = $('metodo'), antes = sel.value; sel.innerHTML = '';
+  metodos.forEach(m => { const o = document.createElement('option'); o.textContent = m; sel.appendChild(o); });
+  if (metodos.includes(antes)) sel.value = antes;
+}
+function pintarMetEditor(lista) {
+  const ed = $('metEditor'); ed.innerHTML = '';
+  lista.forEach((m, k) => {
+    const f = document.createElement('div'); f.className = 'cat-fila met';
+    const nom = Object.assign(document.createElement('input'), { value: m, maxLength: 28, placeholder: 'Ej.: Tarjeta BAC' }); nom.dataset.k = 'n'; nom.setAttribute('aria-label', 'Nombre');
+    const q = document.createElement('button'); q.className = 'quitar'; q.textContent = '✕'; q.setAttribute('aria-label', 'Quitar ' + m);
+    q.onclick = () => { const l = leerMetEditor(); l.splice(k, 1); pintarMetEditor(l); };
+    f.append(nom, q); ed.appendChild(f);
+  });
+}
+const leerMetEditor = () => [...$('metEditor').children].map(f => f.querySelector('[data-k=n]').value.trim());
 
 // Filas: { n, ico, i } donde i es la posición en catIng (o null si es nueva), para saber qué se renombró.
 function pintarIngCats(filas) {
@@ -1225,6 +1257,13 @@ $('guardarIngCat').onclick = () => {
   escribir('mg_cache', cache); escribir('mg_cola', cola); escribir('mg_enviados', enviados);
   pintarAjustes(); pintar(); toast('Categorías de ingreso guardadas');
 };
+$('agregarMet').onclick = () => { pintarMetEditor([...leerMetEditor(), '']); $('metEditor').lastChild.querySelector('input').focus(); };
+$('guardarMet').onclick = () => {
+  const l = leerMetEditor().filter(Boolean);
+  if (!l.length) { toast('Deja al menos una forma de pago'); return; }
+  if (new Set(l.map(n => n.toLowerCase())).size !== l.length) { toast('Hay dos con el mismo nombre'); return; }
+  metodos = l; escribir('mg_metodos', metodos); pintarMetodos(); pintarMetEditor(metodos); toast('Formas de pago guardadas');
+};
 $('agregarIng').onclick = () => pintarEditor('ingEditor', [...leerEditor('ingEditor'), { n: '', m: 0, q: periodoActual().q }]);
 $('guardarIng').onclick = () => { ingresos = leerEditor('ingEditor').filter(f => f.n); escribir('mg_ingresos', ingresos); pintarEditor('ingEditor', ingresos); pintar(); toast('Ingresos fijos guardados'); };
 $('monto').addEventListener('keydown', e => { if (e.key === 'Enter') $('nota').focus(); });
@@ -1255,7 +1294,7 @@ window.addEventListener('online', sincronizar);
 window.addEventListener('offline', () => estadoSync());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { $('fecha').value = iso(new Date()); pintar(); sincronizar(); } });
 
-METODOS.forEach(m => { const o = document.createElement('option'); o.textContent = m; $('metodo').appendChild(o); });
+pintarMetodos();
 $('fecha').value = iso(new Date());
 fijarTipo('Gasto');
 if (FIREBASE) { $('avisoTexto').textContent = 'Crea tu cuenta (o entra con Google) para guardar tus gastos en la nube. Toma un minuto.'; $('avisoHoja').hidden = true; $('avisoNube').hidden = false; }
